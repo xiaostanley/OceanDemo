@@ -2,10 +2,12 @@
 //
 
 #include "stdafx.h"
-
+#include "OgreMain.h"
 
 int main()
 {
+	COgreMain om;
+	om.run();
     return 0;
 }
 
