@@ -16,6 +16,8 @@
 #include "OgreOverlayManager.h"
 
 #include "CameraController.h"
+//#include "OWWater.h"
+#include "TerranLiquid.h"
 
 class COgreMain
 	: public Ogre::FrameListener,
@@ -66,10 +68,14 @@ private:
 	Ogre::OverlaySystem* mOverlaySystem;
 	Ogre::Overlay* mainOverlay;
 
+	TerranLiquid* tliquid;
+
 	//OIS
 	OIS::InputManager* inputManager;
 	OIS::Keyboard* mKeyboard;
 	OIS::Mouse* mMouse;
+
+	//OgreWater::Water* mWater;
 
 	CameraController mainCameraView;
 	float cameraSpeed;

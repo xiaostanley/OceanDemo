@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "OgreMain.h"
 
+#define _TERRAIN_SHOW_ 1
+
 using namespace Ogre;
 
 COgreMain::COgreMain(void)
@@ -17,7 +19,9 @@ COgreMain::COgreMain(void)
 	cameraLeft(false),
 	cameraRight(false),
 	cameraSpeed(40.0f),
-	visibility(true)
+	visibility(true),
+	tliquid(NULL)
+	//mWater(NULL)
 {
 }
 
@@ -90,6 +94,8 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 
 		mainCameraView.getCameraNode()->translate(moveX*evt.timeSinceLastFrame, 0.0f, moveZ*evt.timeSinceLastFrame, Ogre::Node::TS_LOCAL);
 	}
+
+	//mWater->update(evt.timeSinceLastFrame);
 
 	return true;;
 }
@@ -284,6 +290,7 @@ void COgreMain::createContent(void)
 	Ogre::Light* sunlight = mSceneMgr->createLight("sunlight");
 	sunlight->setType(Ogre::Light::LT_DIRECTIONAL);
 
+#if _TERRAIN_SHOW_
 	// µØÐÎ
 	Entity* entTerra = mSceneMgr->createEntity("entTerra", "17002190PAN_2048.mesh");
 	entTerra->getSubEntity(1)->setVisible(visibility);
@@ -300,12 +307,26 @@ void COgreMain::createContent(void)
 	SceneNode* nodeTerra = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra");
 	nodeTerra->addChild(nodeTerraBase);
 	nodeTerra->setScale(0.06f, 0.12f, 0.06f);
+#endif
+	//nodeTerra->setVisible(false);
+
+	tliquid = new TerranLiquid;
+	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
+	tliquid->setHeight(0.f);
+	tliquid->initialize();
+
+// 	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
+// 	mWater->setWaterDustEnabled(true);
+// 	mWater->init();
+// 	mWater->setWaterHeight(300.0f);
 }
 
 void COgreMain::destroyContent(void)
 {
 	mainCameraView.destroyViewport(mWindow);
 	mainCameraView.destroyCameraNode(mSceneMgr);
+
+	//delete mWater;
 
 	//Ogre::OverlayManager::getSingleton().destroy(mainOverlay);
 	//mainOverlay = NULL;
@@ -345,6 +366,7 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		cameraRight = true;
 	}
 
+#if _TERRAIN_SHOW_
 	// ÇÐ»»±ß½ç
 	if (e.key == OIS::KC_P)
 	{
@@ -359,6 +381,7 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		entTerra->getSubEntity(7)->setVisible(!visibility);
 		entTerra->getSubEntity(8)->setVisible(!visibility);
 	}
+#endif
 
 	return true;
 }

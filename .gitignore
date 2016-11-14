@@ -241,3 +241,7 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 *.lnk
+/OceanDemo/OWAnimatedMesh.cpp
+/OceanDemo/OWAnimatedMesh.h
+/OceanDemo/OWWater.cpp
+/OceanDemo/OWWater.h
