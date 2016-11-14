@@ -40,7 +40,7 @@ void TerranLiquid::_getCoastLines(void)
 	Vector3* vertices;
 	unsigned int* indices;
 
-	__getMeshInfo(
+	_getMeshInfo(
 		entTerra->getMesh(), 
 		vertex_count, 
 		vertices, 
@@ -110,7 +110,13 @@ void TerranLiquid::_getCoastLines(void)
 	delete[] indices;
 }
 
-void TerranLiquid::__getMeshInfo(
+void TerranLiquid::_collectCoastLines(void)
+{
+	std::vector<std::list<TerranLiquid::CoastLine>*> clVecs;
+
+}
+
+void TerranLiquid::_getMeshInfo(
 	const Ogre::MeshPtr mesh, 
 	size_t & vertex_count, 
 	Ogre::Vector3 *& vertices, 

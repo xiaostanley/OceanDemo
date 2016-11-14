@@ -70,7 +70,7 @@ private:
 	// 提取海岸线
 	void _getCoastLines(void);
 	// 提取网格信息
-	void __getMeshInfo(
+	void _getMeshInfo(
 		const Ogre::MeshPtr mesh, 
 		size_t &vertex_count, 
 		Ogre::Vector3* &vertices, 
@@ -80,6 +80,9 @@ private:
 		const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY, 
 		const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE
 	);
+	// 整理海岸线信息
+	void _collectCoastLines(void);
+
 };
 
 #endif
