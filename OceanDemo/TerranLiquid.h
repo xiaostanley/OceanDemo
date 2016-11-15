@@ -7,6 +7,7 @@
 
 #include "Ogre.h"
 #include "OgreSimpleRenderable.h"
+#include "GPUDT_vc10.h"
 
 #include <list>
 #include <vector>
@@ -30,7 +31,12 @@ public:
 		const Ogre::String& nameTerra,
 		const Ogre::Vector3& transPos
 	);
+
+	// 设置海平面高度
 	void setHeight(float heightSeaLevel);
+
+	// 设置海面网格密度
+	void setGridDensity(float density);
 
 	// 初始化
 	void initialize(void);
@@ -70,9 +76,20 @@ private:
 	std::list<TerranLiquid::CoastLine>* clList;
 	float heightSeaLevel;	// 海平面高度
 
+	size_t vertex_count, index_count;
+	Ogre::Vector3* vertices;
+	unsigned int* indices;
+
+	float minx, minz, maxx, maxz;
+	float density;
+
 private:
 	// 提取海岸线
 	void _getCoastLines(void);
+	
+	// 初步提取海岸线（无序）
+	void _getInitialCoastLines(void);
+	
 	// 提取网格信息
 	void _getMeshInfo(
 		const Ogre::MeshPtr mesh, 
@@ -84,8 +101,12 @@ private:
 		const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY, 
 		const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE
 	);
+	
 	// 整理海岸线信息
 	void _collectCoastLines(void);
+
+	// 形成海面网格
+	void _generateOceanGrid(void);
 
 private:
 	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)

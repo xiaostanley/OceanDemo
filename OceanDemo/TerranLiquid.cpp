@@ -10,7 +10,8 @@ TerranLiquid::TerranLiquid()
 
 TerranLiquid::~TerranLiquid()
 {
-	delete clList;
+	for (auto iter = clVecs.begin(); iter != clVecs.end(); iter++)
+		delete *iter;
 }
 
 void TerranLiquid::setInputParas(Ogre::Root * mRoot, Ogre::SceneManager * mSceneMgr, Ogre::SceneNode * nodeTerra, const Ogre::String & nameTerra, const Ogre::Vector3 & transPos)
@@ -25,6 +26,7 @@ void TerranLiquid::setInputParas(Ogre::Root * mRoot, Ogre::SceneManager * mScene
 void TerranLiquid::initialize(void)
 {
 	_getCoastLines();
+	_generateOceanGrid();
 }
 
 void TerranLiquid::_getCoastLines(void)
@@ -35,10 +37,6 @@ void TerranLiquid::_getCoastLines(void)
 	// 遍历所有三角形面片
 	// 查找每个面片与海平面的交线
 	// 并添加到clList链表中
-
-	size_t vertex_count, index_count;
-	Vector3* vertices;
-	unsigned int* indices;
 
 	_getMeshInfo(
 		entTerra->getMesh(), 
@@ -54,6 +52,18 @@ void TerranLiquid::_getCoastLines(void)
 	//LogManager::getSingleton().logMessage(LML_NORMAL, "Vertices in mesh: %u", vertex_count);
 	//LogManager::getSingleton().logMessage(LML_NORMAL, "Triangles in mesh: %u", index_count / 3);
 
+	// 初步提取出无序的海岸线
+	_getInitialCoastLines();
+
+	// 整理海岸线信息（使之有序）
+	_collectCoastLines();
+
+	delete[] vertices;
+	delete[] indices;
+}
+
+void TerranLiquid::_getInitialCoastLines(void)
+{
 	// 海平面参数
 	Vector3 p0(10.f, heightSeaLevel, 10.f);
 	Vector3 n = Vector3::UNIT_Y;
@@ -67,7 +77,7 @@ void TerranLiquid::_getCoastLines(void)
 		p[2] = vertices[indices[i + 2]];
 
 		if (!((p[0].y < heightSeaLevel && p[1].y < heightSeaLevel && p[2].y < heightSeaLevel) ||
-			  (p[0].y > heightSeaLevel && p[1].y > heightSeaLevel && p[2].y > heightSeaLevel)))
+			(p[0].y > heightSeaLevel && p[1].y > heightSeaLevel && p[2].y > heightSeaLevel)))
 		{
 			// 遍历三条边 查找与海平面交点
 			// 存储两个交点
@@ -105,12 +115,6 @@ void TerranLiquid::_getCoastLines(void)
 	nodeObj->attachObject(mobj);
 	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
 #endif
-
-	// 整理海岸线信息
-	_collectCoastLines();
-
-	delete[] vertices;
-	delete[] indices;
 }
 
 void TerranLiquid::_collectCoastLines(void)
@@ -202,6 +206,7 @@ void TerranLiquid::_collectCoastLines(void)
 
 		clVecs.push_back(tclList);
 	}
+	delete clList;
 
 #if 1
 	for (size_t i = 0; i < clVecs.size(); i++)
@@ -283,10 +288,10 @@ void TerranLiquid::_getMeshInfo(
 	added_shared = false;
 
 	// 2016-11-15 12:56:09 最值
-// 	float minx = 1000000000.f;
-// 	float minz = minx;
-// 	float maxx = 0.f;
-// 	float maxz = maxx;
+	minx = 1000000000.f;
+	minz = minx;
+	maxx = 0.f;
+	maxz = maxx;
 
 	// Run through the submeshes again, adding the data into the arrays
 	for (unsigned short i = 0; i < countOfSubmeshes/*mesh->getNumSubMeshes()*/; ++i)
@@ -318,10 +323,10 @@ void TerranLiquid::_getMeshInfo(
 				Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
 
 				Ogre::Vector3 tvex = ((orient * pt) + position) * scale;	// 此处orient position scale的顺序需注意
-// 				minx = std::min<float>(minx, tvex.x);
-// 				minz = std::min<float>(minz, tvex.z);
-// 				maxx = std::max<float>(maxx, tvex.x);
-// 				maxz = std::max<float>(maxz, tvex.z);
+				minx = std::min<float>(minx, tvex.x);
+				minz = std::min<float>(minz, tvex.z);
+				maxx = std::max<float>(maxx, tvex.x);
+				maxz = std::max<float>(maxz, tvex.z);
 
 				vertices[current_offset + j] = tvex;
 			}
@@ -358,10 +363,6 @@ void TerranLiquid::_getMeshInfo(
 		current_offset = next_offset;
 	}
 
-	// 计算width height
-// 	width = maxx - minx;
-// 	height = maxz - minz;
-
 #if 0
 	// debug
 	ManualObject* mobj = mSceneMgr->createManualObject("mobj");
@@ -381,4 +382,80 @@ void TerranLiquid::_getMeshInfo(
 void TerranLiquid::setHeight(float heightSeaLevel)
 {
 	this->heightSeaLevel = heightSeaLevel;
+}
+
+void TerranLiquid::_generateOceanGrid(void)
+{
+	// 建立离散点集 作为海面网格点集
+	
+	// 四个角点
+	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, minz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, minz));
+	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, maxz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, maxz));
+
+	// 边界点
+	for (float step = minx + density; step < maxx; step += density)
+	{
+		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, minz));
+		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, maxz));
+	}
+	for (float step = minz + density; step < maxz; step += density)
+	{
+		clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, step));
+		clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, step));
+	}
+
+	// 内部点
+	for (float xstep = minx + density; xstep < maxx; xstep += density)
+	{
+		for (float ystep = minz + density; ystep < maxz; ystep += density)
+		{
+			clPoints.push_back(Ogre::Vector3(xstep, heightSeaLevel, ystep));
+		}
+	}
+
+	GeoPoint3D* verticesPtr = new GeoPoint3D[clPoints.size()];
+	for (size_t i = 0; i < clPoints.size(); i++)
+		verticesPtr[i] = GeoPoint3D(clPoints[i].x, clPoints[i].z, clPoints[i].y);
+	
+	// 约束边
+	int countConstraint = 0;
+	for (size_t i = 0; i < clVecs.size(); i++)
+		countConstraint += clVecs[i]->size();
+	int* constraints = new int[2 * countConstraint];
+	for (size_t i = 0, j = 0; i < clVecs.size(); i++)
+	{
+		const auto plist = clVecs[i];
+		for (auto iter = plist->begin(); iter != plist->end(); iter++)
+		{
+			constraints[j++] = iter->startIdx;
+			constraints[j++] = iter->endIdx;
+		}
+	}
+
+	int* faces = NULL;
+	int countFaces = 0;
+
+	// 建立三角形网格
+	std::unique_ptr<GPUDT> gpuDT(new GPUDT);
+	gpuDT->setInputPoints(verticesPtr, clPoints.size());
+	gpuDT->setInputConstraints(constraints, countConstraint);
+	gpuDT->computeDT(&faces, countFaces);
+
+#if 1
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
+	Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
+#endif
+
+	gpuDT->releaseMemory();
+
+	delete[] verticesPtr;
+	delete[] constraints;
+	delete[] faces;
+}
+
+void TerranLiquid::setGridDensity(float density)
+{
+	this->density = density;
 }

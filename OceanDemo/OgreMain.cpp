@@ -312,7 +312,8 @@ void COgreMain::createContent(void)
 
 	tliquid = new TerranLiquid;
 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
-	tliquid->setHeight(-20.f);
+	tliquid->setHeight(-15.f);
+	tliquid->setGridDensity(10.f);
 	tliquid->initialize();
 
 // 	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
@@ -327,6 +328,7 @@ void COgreMain::destroyContent(void)
 	mainCameraView.destroyCameraNode(mSceneMgr);
 
 	//delete mWater;
+	delete tliquid;
 
 	//Ogre::OverlayManager::getSingleton().destroy(mainOverlay);
 	//mainOverlay = NULL;
