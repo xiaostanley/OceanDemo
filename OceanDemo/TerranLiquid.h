@@ -10,6 +10,9 @@
 
 #include <list>
 #include <vector>
+#include <set>
+
+const float eps = 0.001f;
 
 class TerranLiquid //:
 	//public Ogre::SimpleRenderable
@@ -27,7 +30,7 @@ public:
 		const Ogre::String& nameTerra,
 		const Ogre::Vector3& transPos
 	);
-	void setHeight(float height);
+	void setHeight(float heightSeaLevel);
 
 	// 初始化
 	void initialize(void);
@@ -41,6 +44,7 @@ private:
 	Ogre::String nameTerra;
 	Ogre::Vector3 transPos;	// 位移
 	Ogre::Vector3 scale;	// 缩放
+
 
 private:
 	// 海岸线
@@ -56,15 +60,15 @@ private:
 		CoastLine(int _startIdx, int _endIdx, const Ogre::Vector3& _startVertex, const Ogre::Vector3& _endVertex)
 			:startIdx(_startIdx), endIdx(_endIdx), startVertex(_startVertex), endVertex(_endVertex)
 		{}
-
-// 		bool operator < (const CoastLine& cl)
-// 		{
-// 			if (cl.startIdx)
-// 		}
 	};
 
+	typedef std::list<TerranLiquid::CoastLine> CoastLineList;
+	std::vector<CoastLineList*> clVecs;
+
+	std::vector<Ogre::Vector3> clPoints;
+	
 	std::list<TerranLiquid::CoastLine>* clList;
-	float height;	// 海平面高度
+	float heightSeaLevel;	// 海平面高度
 
 private:
 	// 提取海岸线
@@ -83,6 +87,11 @@ private:
 	// 整理海岸线信息
 	void _collectCoastLines(void);
 
+private:
+	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)
+	{
+		return Ogre::Math::Abs(lhs - rhs);
+	}
 };
 
 #endif

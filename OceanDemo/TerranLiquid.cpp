@@ -55,7 +55,7 @@ void TerranLiquid::_getCoastLines(void)
 	//LogManager::getSingleton().logMessage(LML_NORMAL, "Triangles in mesh: %u", index_count / 3);
 
 	// 海平面参数
-	Vector3 p0(10.f, height, 10.f);
+	Vector3 p0(10.f, heightSeaLevel, 10.f);
 	Vector3 n = Vector3::UNIT_Y;
 	float dp = p0.dotProduct(n);
 
@@ -66,8 +66,8 @@ void TerranLiquid::_getCoastLines(void)
 		p[1] = vertices[indices[i + 1]];
 		p[2] = vertices[indices[i + 2]];
 
-		if (!((p[0].y < height && p[1].y < height && p[2].y < height) ||
-			  (p[0].y > height && p[1].y > height && p[2].y > height)))
+		if (!((p[0].y < heightSeaLevel && p[1].y < heightSeaLevel && p[2].y < heightSeaLevel) ||
+			  (p[0].y > heightSeaLevel && p[1].y > heightSeaLevel && p[2].y > heightSeaLevel)))
 		{
 			// 遍历三条边 查找与海平面交点
 			// 存储两个交点
@@ -79,7 +79,7 @@ void TerranLiquid::_getCoastLines(void)
 				const Vector3& tp1 = p[(j + 1) % 3];
 
 				Vector3 d(tp1 - tp0);
-				if ((tp0.y - height) * (tp1.y - height) < 0.f)	// 存在交点
+				if ((tp0.y - heightSeaLevel) * (tp1.y - heightSeaLevel) < 0.f)	// 存在交点
 				{
 					float t = (dp - tp0.dotProduct(n)) / d.dotProduct(n);
 					pi.push_back(tp0 + t * d);
@@ -90,10 +90,10 @@ void TerranLiquid::_getCoastLines(void)
 		}
 	}
 
-#if 1
+#if 0
 	ManualObject* mobj = mSceneMgr->createManualObject("mobjline");
 	mobj->begin("TestDemo", RenderOperation::OT_LINE_LIST);
-	for (std::list<TerranLiquid::CoastLine>::iterator iter = clList->begin(); iter != clList->end(); iter++)
+	for (CoastLineList::iterator iter = clList->begin(); iter != clList->end(); iter++)
 	{
 		mobj->position(iter->startVertex);
 		mobj->colour(Ogre::ColourValue::White);
@@ -106,14 +106,131 @@ void TerranLiquid::_getCoastLines(void)
 	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
 #endif
 
+	// 整理海岸线信息
+	_collectCoastLines();
+
 	delete[] vertices;
 	delete[] indices;
 }
 
 void TerranLiquid::_collectCoastLines(void)
 {
-	std::vector<std::list<TerranLiquid::CoastLine>*> clVecs;
+	// 确定clList中每条边两个顶点的索引
+	for (CoastLineList::iterator iter = clList->begin(); iter != clList->end(); iter++)
+	{
+		const Ogre::Vector3& sv = iter->startVertex;
+		const Ogre::Vector3& ev = iter->endVertex;
 
+		auto viter = clPoints.begin();
+		for (; viter != clPoints.end(); viter++)
+		{
+			if (_absValue(sv.x, viter->x) < eps && _absValue(sv.y, viter->y) < eps && _absValue(sv.z, viter->z) < eps)
+			{
+				iter->startIdx = std::distance(clPoints.begin(), viter);
+				break;
+			}
+		}
+		if (viter == clPoints.end())
+		{
+			iter->startIdx = clPoints.size();
+			clPoints.push_back(sv);
+		}
+
+		viter = clPoints.begin();
+		for (; viter != clPoints.end(); viter++)
+		{
+			if (_absValue(ev.x, viter->x) < eps && _absValue(ev.y, viter->y) < eps && _absValue(ev.z, viter->z) < eps)
+			{
+				iter->endIdx = std::distance(clPoints.begin(), viter);
+				break;
+			}
+		}
+		if (viter == clPoints.end())
+		{
+			iter->endIdx = clPoints.size();
+			clPoints.push_back(ev);
+		}
+	}
+
+	// 调整clList中每个元素内部两端点顺序
+	for (auto iter = clList->begin(); iter != clList->end(); iter++)
+	{
+		if (iter->endIdx < iter->startIdx)
+		{
+			std::swap(iter->endIdx, iter->startIdx);
+			iter->startVertex.swap(iter->endVertex);
+		}
+	}
+
+	while (clList->size() != 0)
+	{
+		// 建立空表 将clList中首元素加入空表，并在clList中删除
+		CoastLineList* tclList = new CoastLineList;
+		tclList->push_back(clList->front());
+		clList->erase(clList->begin());
+
+		// 遍历clList中剩余的元素，若能与tclList的头部或尾部相接
+		// 则将其从clList中删除，并在tclList头部或尾部插入
+		while (true)
+		{
+			bool isExisted = false;	// clList中是否还有能加入到tclList中的线段？
+			for (auto iter = clList->begin(); iter != clList->end();)
+			{
+				const TerranLiquid::CoastLine& fr = tclList->front();
+				const TerranLiquid::CoastLine& bk = tclList->back();
+
+				if (iter->startIdx == fr.startIdx || iter->startIdx == fr.endIdx || iter->endIdx == fr.startIdx || iter->endIdx == fr.endIdx)
+				{
+					isExisted = true;
+					tclList->push_front(*iter);
+					iter = clList->erase(iter);
+				}
+				else if (iter->startIdx == bk.startIdx || iter->startIdx == bk.endIdx || iter->endIdx == bk.startIdx || iter->endIdx == bk.endIdx)
+				{
+					isExisted = true;
+					tclList->push_back(*iter);
+					iter = clList->erase(iter);
+				}
+				else
+					iter++;
+			}
+
+			// clList中已不存在能加入到tclList中的线段 退出循环
+			if (!isExisted) 
+				break;
+		}
+
+		clVecs.push_back(tclList);
+	}
+
+#if 1
+	for (size_t i = 0; i < clVecs.size(); i++)
+	{
+		ManualObject* mobj = mSceneMgr->createManualObject("mobjline" + Ogre::StringConverter::toString(i));
+		mobj->begin("TestDemo", RenderOperation::OT_LINE_LIST);
+		for (CoastLineList::iterator iter = clVecs[i]->begin(); iter != clVecs[i]->end(); iter++)
+		{
+			mobj->position(iter->startVertex);
+			if (i % 3 == 0)
+				mobj->colour(Ogre::ColourValue::White);
+			else if (i % 3 == 1)
+				mobj->colour(Ogre::ColourValue::Red);
+			else
+				mobj->colour(Ogre::ColourValue::Green);
+			mobj->position(iter->endVertex);
+			if (i % 3 == 0)
+				mobj->colour(Ogre::ColourValue::White);
+			else if (i % 3 == 1)
+				mobj->colour(Ogre::ColourValue::Red);
+			else
+				mobj->colour(Ogre::ColourValue::Green);
+		}
+		mobj->end();
+		SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObj" + Ogre::StringConverter::toString(i));
+		nodeObj->attachObject(mobj);
+		mSceneMgr->getRootSceneNode()->addChild(nodeObj);
+	}
+#endif
 }
 
 void TerranLiquid::_getMeshInfo(
@@ -165,6 +282,12 @@ void TerranLiquid::_getMeshInfo(
 
 	added_shared = false;
 
+	// 2016-11-15 12:56:09 最值
+// 	float minx = 1000000000.f;
+// 	float minz = minx;
+// 	float maxx = 0.f;
+// 	float maxz = maxx;
+
 	// Run through the submeshes again, adding the data into the arrays
 	for (unsigned short i = 0; i < countOfSubmeshes/*mesh->getNumSubMeshes()*/; ++i)
 	{
@@ -193,7 +316,14 @@ void TerranLiquid::_getMeshInfo(
 			{
 				posElem->baseVertexPointerToElement(vertex, &pReal);
 				Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
-				vertices[current_offset + j] = ((orient * pt) + position) * scale;
+
+				Ogre::Vector3 tvex = ((orient * pt) + position) * scale;	// 此处orient position scale的顺序需注意
+// 				minx = std::min<float>(minx, tvex.x);
+// 				minz = std::min<float>(minz, tvex.z);
+// 				maxx = std::max<float>(maxx, tvex.x);
+// 				maxz = std::max<float>(maxz, tvex.z);
+
+				vertices[current_offset + j] = tvex;
 			}
 
 			vbuf->unlock();
@@ -228,6 +358,10 @@ void TerranLiquid::_getMeshInfo(
 		current_offset = next_offset;
 	}
 
+	// 计算width height
+// 	width = maxx - minx;
+// 	height = maxz - minz;
+
 #if 0
 	// debug
 	ManualObject* mobj = mSceneMgr->createManualObject("mobj");
@@ -244,7 +378,7 @@ void TerranLiquid::_getMeshInfo(
 #endif
 }
 
-void TerranLiquid::setHeight(float height)
+void TerranLiquid::setHeight(float heightSeaLevel)
 {
-	this->height = height;
+	this->heightSeaLevel = heightSeaLevel;
 }

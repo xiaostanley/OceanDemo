@@ -312,7 +312,7 @@ void COgreMain::createContent(void)
 
 	tliquid = new TerranLiquid;
 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
-	tliquid->setHeight(0.f);
+	tliquid->setHeight(-20.f);
 	tliquid->initialize();
 
 // 	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
@@ -380,6 +380,12 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		entTerra->getSubEntity(6)->setVisible(!visibility);
 		entTerra->getSubEntity(7)->setVisible(!visibility);
 		entTerra->getSubEntity(8)->setVisible(!visibility);
+	}
+	// 不显示地形
+	if (e.key == OIS::KC_I)
+	{
+		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
+		nodeTerra->flipVisibility(true);
 	}
 #endif
 
