@@ -12,6 +12,9 @@ TerranLiquid::~TerranLiquid()
 {
 	for (auto iter = clVecs.begin(); iter != clVecs.end(); iter++)
 		delete *iter;
+
+	delete[] vertices;
+	delete[] indices;
 }
 
 void TerranLiquid::setInputParas(Ogre::Root * mRoot, Ogre::SceneManager * mSceneMgr, Ogre::SceneNode * nodeTerra, const Ogre::String & nameTerra, const Ogre::Vector3 & transPos)
@@ -57,9 +60,6 @@ void TerranLiquid::_getCoastLines(void)
 
 	// 整理海岸线信息（使之有序）
 	_collectCoastLines();
-
-	delete[] vertices;
-	delete[] indices;
 }
 
 void TerranLiquid::_getInitialCoastLines(void)
@@ -446,6 +446,54 @@ void TerranLiquid::_generateOceanGrid(void)
 #if 1
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
 	Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
+#endif
+
+	// 遍历faces中所有面片
+	// 计算每个面片中心点在地形mesh中的对应高度
+	// 判断当前面片是否应删除
+
+	std::vector<bool> isNotOceanMesh(countFaces, false);
+
+	for (size_t i = 0; i < 3 * countFaces; i += 3)
+	{
+		const auto& p0 = clPoints[faces[i]];
+		const auto& p1 = clPoints[faces[i + 1]];
+		const auto& p2 = clPoints[faces[i + 2]];
+
+		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
+
+		Ogre::Ray ray(cp + Ogre::Vector3(0.f, 1000000000.f, 0.f), Ogre::Vector3::NEGATIVE_UNIT_Y);
+		for (size_t j = 0; j < index_count; j += 3)
+		{
+			Ogre::Plane pl(vertices[indices[j]], vertices[indices[j + 1]], vertices[indices[j + 2]]);
+			auto rs = ray.intersects(pl);
+			if (rs.first)
+			{
+				if (ray.getOrigin().y - rs.second > heightSeaLevel)
+				{
+					isNotOceanMesh[i / 3] = true;
+				}
+				break;
+			}
+		}
+	}
+
+	// 删除无效面片
+
+	std::vector<int> newIndices;
+	for (size_t i = 0; i < countFaces; i++)
+	{
+		if (isNotOceanMesh[i])
+		{
+			newIndices.push_back(faces[3 * i]);
+			newIndices.push_back(faces[3 * i + 1]);
+			newIndices.push_back(faces[3 * i + 2]);
+		}
+	}
+
+#if 1
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/grid2.ply";
+	Helper::exportPlyModel(path1, verticesPtr, clPoints.size(), &newIndices[0], newIndices.size() / 3);
 #endif
 
 	gpuDT->releaseMemory();
