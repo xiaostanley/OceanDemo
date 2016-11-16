@@ -443,9 +443,10 @@ void TerranLiquid::_generateOceanGrid(void)
 	gpuDT->setInputConstraints(constraints, countConstraint);
 	gpuDT->computeDT(&faces, countFaces);
 
-#if 1
+#if 0
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
-	Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
+	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
+	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), faces, countFaces);
 #endif
 
 	// 遍历faces中所有面片
@@ -453,54 +454,77 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 判断当前面片是否应删除
 
 	std::vector<bool> isNotOceanMesh(countFaces, false);
+	std::vector<Ogre::Vector3> cpp;
 
-	for (size_t i = 0; i < 3 * countFaces; i += 3)
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
 	{
-		const auto& p0 = clPoints[faces[i]];
-		const auto& p1 = clPoints[faces[i + 1]];
-		const auto& p2 = clPoints[faces[i + 2]];
+		int tidx = 3 * i;
+		const auto& p0 = clPoints[faces[tidx]];
+		const auto& p1 = clPoints[faces[tidx + 1]];
+		const auto& p2 = clPoints[faces[tidx + 2]];
 
 		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
+		cp.y = 1000.f;
 
-		Ogre::Ray ray(cp + Ogre::Vector3(0.f, 1000000000.f, 0.f), Ogre::Vector3::NEGATIVE_UNIT_Y);
+		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
 		for (size_t j = 0; j < index_count; j += 3)
 		{
-			Ogre::Plane pl(vertices[indices[j]], vertices[indices[j + 1]], vertices[indices[j + 2]]);
-			auto rs = ray.intersects(pl);
-			if (rs.first)
+			const auto& tp0 = vertices[indices[j]];
+			const auto& tp1 = vertices[indices[j + 1]];
+			const auto& tp2 = vertices[indices[j + 2]];
+
+			Vector2 pa(tp0.x - cp.x, tp0.z - cp.z);
+			Vector2 pb(tp1.x - cp.x, tp1.z - cp.z);
+			Vector2 pc(tp2.x - cp.x, tp2.z - cp.z);
+			
+			double t1 = static_cast<double>(pa.x) * static_cast<double>(pb.y) - static_cast<double>(pa.y)*static_cast<double>(pb.x);
+			double t2 = static_cast<double>(pb.x) * static_cast<double>(pc.y) - static_cast<double>(pb.y)*static_cast<double>(pc.x);
+			double t3 = static_cast<double>(pc.x) * static_cast<double>(pa.y) - static_cast<double>(pc.y)*static_cast<double>(pa.x);
+			
+			if (t1*t2 >= 0.0 && t1*t3 >= 0.0)
 			{
-				if (ray.getOrigin().y - rs.second > heightSeaLevel)
+				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
+				if (rs.first)
 				{
-					isNotOceanMesh[i / 3] = true;
+					cpp.push_back(cp - Vector3(0.f, rs.second, 0.f));
+					if (cp.y - rs.second < heightSeaLevel)
+						isNotOceanMesh[i] = true;
+					break;
 				}
-				break;
 			}
 		}
 	}
 
+#if 0
+// 	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp.ply";
+// 	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp1.ply";
+	Helper::exportPlyModel(path2, &cpp[0], cpp.size(), (int*)NULL, 0);
+#endif
+
 	// 删除无效面片
 
-	std::vector<int> newIndices;
-	for (size_t i = 0; i < countFaces; i++)
+	std::vector<int> indicesLeft;
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
 	{
 		if (isNotOceanMesh[i])
 		{
-			newIndices.push_back(faces[3 * i]);
-			newIndices.push_back(faces[3 * i + 1]);
-			newIndices.push_back(faces[3 * i + 2]);
+			indicesLeft.push_back(faces[3 * i]);
+			indicesLeft.push_back(faces[3 * i + 1]);
+			indicesLeft.push_back(faces[3 * i + 2]);
 		}
 	}
 
-#if 1
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/grid2.ply";
-	Helper::exportPlyModel(path1, verticesPtr, clPoints.size(), &newIndices[0], newIndices.size() / 3);
+#if 0
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
+	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &indicesLeft[0], indicesLeft.size() / 3);
 #endif
 
 	gpuDT->releaseMemory();
 
 	delete[] verticesPtr;
 	delete[] constraints;
-	delete[] faces;
+	//delete[] faces;
 }
 
 void TerranLiquid::setGridDensity(float density)

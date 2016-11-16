@@ -101,8 +101,6 @@ private:
 		const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY, 
 		const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE
 	);
-
-	
 	
 	// 整理海岸线信息
 	void _collectCoastLines(void);
