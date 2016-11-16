@@ -12,6 +12,7 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <map>
 
 const float eps = 0.001f;
 
@@ -107,6 +108,22 @@ private:
 
 	// 形成海面网格
 	void _generateOceanGrid(void);
+
+	// 删除无效点和面片
+	void _removeInvalidData(
+		const std::vector<bool>& isNotOceanMesh,
+		int* clFaces,
+		int countFaces
+	);
+
+private:
+	// 创建VertexData
+	void _createVertexData(void);
+
+	// 创建IndexData
+	void _createIndexData(void);
+
+	Ogre::VertexData* pVertex;
 
 private:
 	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)

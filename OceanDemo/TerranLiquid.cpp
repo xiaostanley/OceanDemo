@@ -434,14 +434,17 @@ void TerranLiquid::_generateOceanGrid(void)
 		}
 	}
 
-	int* faces = NULL;
+	int* clFaces = NULL;
 	int countFaces = 0;
 
 	// 建立三角形网格
 	std::unique_ptr<GPUDT> gpuDT(new GPUDT);
 	gpuDT->setInputPoints(verticesPtr, clPoints.size());
 	gpuDT->setInputConstraints(constraints, countConstraint);
-	gpuDT->computeDT(&faces, countFaces);
+	gpuDT->computeDT(&clFaces, countFaces);
+
+	delete[] verticesPtr;
+	delete[] constraints;
 
 #if 0
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
@@ -454,14 +457,14 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 判断当前面片是否应删除
 
 	std::vector<bool> isNotOceanMesh(countFaces, false);
-	std::vector<Ogre::Vector3> cpp;
+	//std::vector<Ogre::Vector3> cpp;
 
 	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
 	{
 		int tidx = 3 * i;
-		const auto& p0 = clPoints[faces[tidx]];
-		const auto& p1 = clPoints[faces[tidx + 1]];
-		const auto& p2 = clPoints[faces[tidx + 2]];
+		const auto& p0 = clPoints[clFaces[tidx]];
+		const auto& p1 = clPoints[clFaces[tidx + 1]];
+		const auto& p2 = clPoints[clFaces[tidx + 2]];
 
 		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
 		cp.y = 1000.f;
@@ -486,7 +489,7 @@ void TerranLiquid::_generateOceanGrid(void)
 				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
 				if (rs.first)
 				{
-					cpp.push_back(cp - Vector3(0.f, rs.second, 0.f));
+					//cpp.push_back(cp - Vector3(0.f, rs.second, 0.f));
 					if (cp.y - rs.second < heightSeaLevel)
 						isNotOceanMesh[i] = true;
 					break;
@@ -502,32 +505,92 @@ void TerranLiquid::_generateOceanGrid(void)
 	Helper::exportPlyModel(path2, &cpp[0], cpp.size(), (int*)NULL, 0);
 #endif
 
-	// 删除无效面片
-
-	std::vector<int> indicesLeft;
-	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
-	{
-		if (isNotOceanMesh[i])
-		{
-			indicesLeft.push_back(faces[3 * i]);
-			indicesLeft.push_back(faces[3 * i + 1]);
-			indicesLeft.push_back(faces[3 * i + 2]);
-		}
-	}
-
-#if 0
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
-	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &indicesLeft[0], indicesLeft.size() / 3);
-#endif
+	// 删除无效点和无效面片
+	_removeInvalidData(isNotOceanMesh, clFaces, countFaces);
 
 	gpuDT->releaseMemory();
-
-	delete[] verticesPtr;
-	delete[] constraints;
-	//delete[] faces;
 }
 
 void TerranLiquid::setGridDensity(float density)
 {
 	this->density = density;
+}
+
+void TerranLiquid::_createVertexData(void)
+{
+	Ogre::HardwareVertexBufferSharedPtr pVertexBuffer;
+	pVertex = new Ogre::VertexData;
+	pVertex->vertexStart = 0;
+	pVertex->vertexCount = 0;
+}
+
+void TerranLiquid::_createIndexData(void)
+{
+
+}
+
+void TerranLiquid::_removeInvalidData(const std::vector<bool>& isNotOceanMesh, int* clFaces, int countFaces)
+{
+	std::vector<int> clFacesLeft;
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
+	{
+		if (isNotOceanMesh[i])
+		{
+			clFacesLeft.push_back(clFaces[3 * i]);
+			clFacesLeft.push_back(clFaces[3 * i + 1]);
+			clFacesLeft.push_back(clFaces[3 * i + 2]);
+		}
+	}
+
+#if 1
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
+	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &clFacesLeft[0], clFacesLeft.size() / 3);
+#endif
+
+	// clPoints中每个点所共享的面片
+	std::vector<std::vector<int>> nrClFacesPerVertex(clPoints.size());
+	for (size_t i = 0; i < clFacesLeft.size(); i++)
+	{
+		nrClFacesPerVertex[clFacesLeft[i]].push_back(i / 3);
+	}
+
+	// 更新面片对应顶点索引
+
+	std::vector<Ogre::Vector3> clPointsLeft;
+
+	// key-value: clPoints索引-clPointsLeft索引
+	std::map<size_t, size_t> vertexIndicesUd;
+	
+	for (size_t i = 0; i < clPoints.size(); i++)
+	{
+		if (nrClFacesPerVertex[i].size() != 0)
+		{
+			vertexIndicesUd.insert(std::map<size_t, size_t>::value_type(i, vertexIndicesUd.size()));
+			clPointsLeft.push_back(clPoints[i]);
+		}
+	}
+	
+	for (auto iter = clFacesLeft.begin(); iter != clFacesLeft.end(); iter++)
+	{
+		auto viter = vertexIndicesUd.find(*iter);
+		if (viter != vertexIndicesUd.end())
+			*iter = viter->second;
+	}
+
+	// 更新
+	delete[] vertices;
+	delete[] indices;
+	
+	vertices = new Ogre::Vector3[clPointsLeft.size()];
+	indices = new unsigned int[clFacesLeft.size() * 3];
+	std::copy(clPointsLeft.begin(), clPointsLeft.end(), vertices);
+	std::copy(clFacesLeft.begin(), clFacesLeft.end(), indices);
+	vertex_count = clPointsLeft.size();
+	index_count = clFacesLeft.size();
+
+#if 1
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_simp.ply";
+	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
+	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
+#endif
 }
