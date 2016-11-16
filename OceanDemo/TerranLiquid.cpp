@@ -4,6 +4,27 @@
 using namespace Ogre;
 
 TerranLiquid::TerranLiquid()
+	:mRoot(NULL),
+	mSceneMgr(NULL),
+	nodeTerra(NULL),
+	entTerra(NULL),
+	nameTerra(""),
+	transPos(Ogre::Vector3::ZERO),
+	scale(Ogre::Vector3::ZERO),
+	heightSeaLevel(0.f),
+	vertex_count(0),
+	index_count(0),
+	vertices(NULL),
+	indices(NULL),
+	depths(NULL),
+	texScale(1.f),
+	depthScale(1.f),
+	density(10.f),
+	minx(1000000000.f),
+	minz(1000000000.f),
+	maxx(0.f),
+	maxz(0.f),
+	pVertex(NULL)
 {
 	clList = new std::list<TerranLiquid::CoastLine>;
 }
@@ -15,6 +36,7 @@ TerranLiquid::~TerranLiquid()
 
 	delete[] vertices;
 	delete[] indices;
+	delete[] depths;
 }
 
 void TerranLiquid::setInputParas(Ogre::Root * mRoot, Ogre::SceneManager * mSceneMgr, Ogre::SceneNode * nodeTerra, const Ogre::String & nameTerra, const Ogre::Vector3 & transPos)
@@ -30,6 +52,30 @@ void TerranLiquid::initialize(void)
 {
 	_getCoastLines();
 	_generateOceanGrid();
+
+	// 获取深度数据（必须在生成OceanGrid之后才能进行）
+	// （只能在剔除无效点面后进行）
+	_getDepthData();
+}
+
+Ogre::uint32 TerranLiquid::getTypeFlags() const
+{
+	return Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK;
+}
+
+Ogre::Real TerranLiquid::getBoundingRadius(void) const
+{
+	return Math::Sqrt(std::max(mBox.getMaximum().squaredLength(), mBox.getMinimum().squaredLength()));
+}
+
+Ogre::Real TerranLiquid::getSquaredViewDepth(const Ogre::Camera * cam) const
+{
+	const Vector3 vMin = mBox.getMinimum();
+	const Vector3 vMax = mBox.getMaximum();
+	const Vector3 vMid = ((vMin - vMax) * 0.5) + vMin;
+	const Vector3 vDist = cam->getDerivedPosition() - vMid;
+
+	return vDist.squaredLength();
 }
 
 void TerranLiquid::_getCoastLines(void)
@@ -457,7 +503,6 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 判断当前面片是否应删除
 
 	std::vector<bool> isNotOceanMesh(countFaces, false);
-	//std::vector<Ogre::Vector3> cpp;
 
 	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
 	{
@@ -476,20 +521,11 @@ void TerranLiquid::_generateOceanGrid(void)
 			const auto& tp1 = vertices[indices[j + 1]];
 			const auto& tp2 = vertices[indices[j + 2]];
 
-			Vector2 pa(tp0.x - cp.x, tp0.z - cp.z);
-			Vector2 pb(tp1.x - cp.x, tp1.z - cp.z);
-			Vector2 pc(tp2.x - cp.x, tp2.z - cp.z);
-			
-			double t1 = static_cast<double>(pa.x) * static_cast<double>(pb.y) - static_cast<double>(pa.y)*static_cast<double>(pb.x);
-			double t2 = static_cast<double>(pb.x) * static_cast<double>(pc.y) - static_cast<double>(pb.y)*static_cast<double>(pc.x);
-			double t3 = static_cast<double>(pc.x) * static_cast<double>(pa.y) - static_cast<double>(pc.y)*static_cast<double>(pa.x);
-			
-			if (t1*t2 >= 0.0 && t1*t3 >= 0.0)
+			if (_isPointInTriangle2D(tp0, tp1, tp2, cp))
 			{
 				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
 				if (rs.first)
 				{
-					//cpp.push_back(cp - Vector3(0.f, rs.second, 0.f));
 					if (cp.y - rs.second < heightSeaLevel)
 						isNotOceanMesh[i] = true;
 					break;
@@ -521,7 +557,58 @@ void TerranLiquid::_createVertexData(void)
 	Ogre::HardwareVertexBufferSharedPtr pVertexBuffer;
 	pVertex = new Ogre::VertexData;
 	pVertex->vertexStart = 0;
-	pVertex->vertexCount = 0;
+	pVertex->vertexCount = vertex_count * 4;
+
+	Ogre::VertexDeclaration* decl = pVertex->vertexDeclaration;
+	Ogre::VertexBufferBinding* bind = pVertex->vertexBufferBinding;
+	size_t offset = 0;
+
+	decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
+	offset += Ogre::VertexElement::getTypeSize(VET_FLOAT3);
+
+	decl->addElement(0, offset, VET_FLOAT3, VES_NORMAL);
+	offset += Ogre::VertexElement::getTypeSize(VET_FLOAT3);
+
+	decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);	// 动态纹理
+	offset += Ogre::VertexElement::getTypeSize(VET_FLOAT2);
+
+	decl->addElement(0, offset, VET_FLOAT1, VES_TEXTURE_COORDINATES, 1);	// 一维深度图
+	
+	pVertexBuffer = HardwareBufferManager::getSingleton().createVertexBuffer(
+		decl->getVertexSize(0), pVertex->vertexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+	bind->setBinding(0, pVertexBuffer);
+
+	const Ogre::VertexElement* positionElem = decl->findElementBySemantic(VES_POSITION);
+	const Ogre::VertexElement* normalElem = decl->findElementBySemantic(VES_NORMAL);
+	const Ogre::VertexElement* textureElem0 = decl->findElementBySemantic(VES_TEXTURE_COORDINATES, 0);
+	const Ogre::VertexElement* textureElem1 = decl->findElementBySemantic(VES_TEXTURE_COORDINATES, 1);
+
+	unsigned char* pBase = static_cast<unsigned char*>(pVertexBuffer->lock(HardwareBuffer::HBL_DISCARD));
+	void *pPosition, *pNormal, *pTexture0, *pTexture1;
+
+	// 填充顶点数据
+	for (size_t i = 0; i < vertex_count; i++)
+	{
+		Ogre::Vector3 position = vertices[i];
+		Ogre::Vector3 normal(Ogre::Vector3::UNIT_Y);
+		Ogre::Vector2 texture0 = Ogre::Vector2((vertices[i].x - minx) / (maxx - minx), (vertices[i].z - minz) / (maxz - minz)) * texScale;
+		Ogre::Real texture1 = depths[i] * depthScale;
+
+		positionElem->baseVertexPointerToElement(pBase, &pPosition);
+		normalElem->baseVertexPointerToElement(pBase, &pNormal);
+		textureElem0->baseVertexPointerToElement(pBase, &pTexture0);
+		textureElem1->baseVertexPointerToElement(pBase, &pTexture1);
+
+		memcpy(pPosition, &position, sizeof(Ogre::Vector3));
+		memcpy(pNormal, &normal, sizeof(Ogre::Vector3));
+		memcpy(pTexture0, &texture0, sizeof(Ogre::Vector2));
+		memcpy(pTexture1, &texture1, sizeof(Ogre::Real));
+
+		pBase += pVertexBuffer->getVertexSize();
+	}
+
+	pVertexBuffer->unlock();
+
 }
 
 void TerranLiquid::_createIndexData(void)
@@ -542,7 +629,7 @@ void TerranLiquid::_removeInvalidData(const std::vector<bool>& isNotOceanMesh, i
 		}
 	}
 
-#if 1
+#if 0
 	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
 	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &clFacesLeft[0], clFacesLeft.size() / 3);
 #endif
@@ -593,4 +680,35 @@ void TerranLiquid::_removeInvalidData(const std::vector<bool>& isNotOceanMesh, i
 	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
 	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
 #endif
+}
+
+void TerranLiquid::_getDepthData(void)
+{
+	depths = new Ogre::Real[vertex_count];
+
+	for (size_t i = 0; i < vertex_count; i++)
+	{
+		Ogre::Vector3 cp(vertices[i]);
+		cp.y = 1000.f;
+
+		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
+		for (size_t j = 0; j < index_count; j += 3)
+		{
+			const auto& tp0 = vertices[indices[j]];
+			const auto& tp1 = vertices[indices[j + 1]];
+			const auto& tp2 = vertices[indices[j + 2]];
+
+			if (_isPointInTriangle2D(tp0, tp1, tp2, cp))
+			{
+				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
+				if (rs.first)
+				{
+					depths[i] = cp.y - rs.second - heightSeaLevel;
+					if (depths[i] < 0.f)
+						depths[i] = 0.f;
+					break;
+				}
+			}
+		}
+	}
 }

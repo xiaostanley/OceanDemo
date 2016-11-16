@@ -16,8 +16,8 @@
 
 const float eps = 0.001f;
 
-class TerranLiquid //:
-	//public Ogre::SimpleRenderable
+class TerranLiquid :
+	public Ogre::SimpleRenderable
 {
 public:
 	TerranLiquid();
@@ -42,6 +42,10 @@ public:
 	// 初始化
 	void initialize(void);
 
+public:
+	virtual Ogre::uint32 getTypeFlags() const;
+	virtual Ogre::Real getBoundingRadius(void) const;
+	virtual Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const;
 
 private:
 	Ogre::Root* mRoot;
@@ -81,8 +85,13 @@ private:
 	Ogre::Vector3* vertices;
 	unsigned int* indices;
 
+	Ogre::Real* depths;	// 深度数据
+
 	float minx, minz, maxx, maxz;
-	float density;
+	float density;		// 海面网格密度
+
+	float texScale;		// 动态纹理缩放因子
+	float depthScale;	// 深度纹理缩放因子
 
 private:
 	// 提取海岸线
@@ -109,6 +118,9 @@ private:
 	// 形成海面网格
 	void _generateOceanGrid(void);
 
+	// 提取深度数据
+	void _getDepthData(void);
+
 	// 删除无效点和面片
 	void _removeInvalidData(
 		const std::vector<bool>& isNotOceanMesh,
@@ -129,6 +141,24 @@ private:
 	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)
 	{
 		return Ogre::Math::Abs(lhs - rhs);
+	}
+
+	inline bool _isPointInTriangle2D(
+		const Ogre::Vector3& tp0,
+		const Ogre::Vector3& tp1,
+		const Ogre::Vector3& tp2,
+		const Ogre::Vector3& cp
+	)
+	{
+		Ogre::Vector2 pa(tp0.x - cp.x, tp0.z - cp.z);
+		Ogre::Vector2 pb(tp1.x - cp.x, tp1.z - cp.z);
+		Ogre::Vector2 pc(tp2.x - cp.x, tp2.z - cp.z);
+
+		double t1 = static_cast<double>(pa.x) * static_cast<double>(pb.y) - static_cast<double>(pa.y)*static_cast<double>(pb.x);
+		double t2 = static_cast<double>(pb.x) * static_cast<double>(pc.y) - static_cast<double>(pb.y)*static_cast<double>(pc.x);
+		double t3 = static_cast<double>(pc.x) * static_cast<double>(pa.y) - static_cast<double>(pc.y)*static_cast<double>(pa.x);
+
+		return (t1*t2 >= 0.0 && t1*t3 >= 0.0);
 	}
 };
 
