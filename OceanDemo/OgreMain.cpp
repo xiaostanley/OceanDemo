@@ -87,6 +87,9 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 	//视点控制
 	if (cameraForward || cameraBackward || cameraLeft || cameraRight)
 	{
+		float heightCam = mainCameraView.getCameraNode()->_getDerivedPosition().y;
+		cameraSpeed = 40.f + Ogre::Math::Abs(heightCam);
+
 		//float cameraSpeed = 2.0f;// 2.0f
 		float moveX = 0.0f;
 		float moveY = 0.0f;
@@ -304,6 +307,8 @@ void COgreMain::createContent(void)
 	Ogre::Light* sunlight = mSceneMgr->createLight("sunlight");
 	sunlight->setType(Ogre::Light::LT_DIRECTIONAL);
 
+	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox");
+
 #if _TERRAIN_SHOW_
 	// 地形
 	Entity* entTerra = mSceneMgr->createEntity("entTerra", "17002190PAN_2048.mesh");
@@ -342,19 +347,22 @@ void COgreMain::createContent(void)
 // 	mWater->setWaterHeight(300.0f);
 
 #if 1
+	Ogre::Vector3 minVec = (entTerra->getBoundingBox().getMinimum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().x;
+	Ogre::Vector3 maxVec = (entTerra->getBoundingBox().getMaximum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().z;
+
+	float xgrid = Ogre::Math::Abs(maxVec.x - minVec.x);
+	float ygrid = Ogre::Math::Abs(maxVec.z - minVec.z);
+
 	Ogre::Plane oceanSurface;
 	oceanSurface.normal = Ogre::Vector3::UNIT_Y;
 	oceanSurface.d = 15.f;
-	Ogre::MeshManager::getSingleton().createPlane("OceanSurface",
-		Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-		oceanSurface, entTerra->getBoundingBox().getMaximum().x - entTerra->getBoundingBox().getMinimum().x, 
-		entTerra->getBoundingBox().getMaximum().z - entTerra->getBoundingBox().getMinimum().z,
-		100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+	Ogre::MeshManager::getSingleton().createPlane("OceanSurface", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		oceanSurface, xgrid, ygrid, 100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
 
 	Entity* entOceanSurface = mSceneMgr->createEntity("entOceanSurface", "OceanSurface");
 	SceneNode* nodeOceanSurface = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanSurface");
 	nodeOceanSurface->attachObject(entOceanSurface);
-	entOceanSurface->setMaterialName("OceanCg");
+	entOceanSurface->setMaterialName("Ocean2_HLSL_GLSL");
 #endif
 }
 

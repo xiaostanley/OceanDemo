@@ -95,6 +95,9 @@
       <AdditionalLibraryDirectories>$(OGRE_VC14_V1_10_0)\lib\debug;$(OGRE_VC14_V1_10_0)\lib\debug\opt;$(OGRE_VC14_V1_10_0)\lib\debug\opt\samples;$(OGRE_VC14_V1_10_0)\boost\lib;%(AdditionalLibraryDirectories);$(LIBNOISE_HOME)\lib;$(GPUDT)\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>libboost_chrono-vc140-mt-gd-1_59.lib;libboost_date_time-vc140-mt-gd-1_59.lib;libboost_system-vc140-mt-gd-1_59.lib;libboost_thread-vc140-mt-gd-1_59.lib;OgreMain_d.lib;OgreRTShaderSystem_d.lib;OgreTerrain_d.lib;OgrePaging_d.lib;OgreVolume_d.lib;OgreOverlay_d.lib;OIS_d.lib;cg.lib;libnoise.lib;%(AdditionalDependencies);GPUDT.lib</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(ProjectDir)Ocean.material $(OGRE_VC14_V1_10_0)\media\materials\scripts</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -127,6 +130,9 @@
       <AdditionalDependencies>libboost_chrono-vc140-mt-1_59.lib;libboost_date_time-vc140-mt-1_59.lib;libboost_system-vc140-mt-1_59.lib;libboost_thread-vc140-mt-1_59.lib;OgreMain.lib;OgreRTShaderSystem.lib;OgreTerrain.lib;OgrePaging.lib;OgreVolume.lib;OgreOverlay.lib;OIS.lib;cg.lib;libnoise.lib;%(AdditionalDependencies);GPUDT.lib</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:No %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(ProjectDir)Ocean.material $(OGRE_VC14_V1_10_0)\media\materials\scripts</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -166,6 +172,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="TerranLiquid.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Ocean.material" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
