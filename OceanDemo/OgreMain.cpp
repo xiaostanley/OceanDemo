@@ -18,9 +18,13 @@ COgreMain::COgreMain(void)
 	cameraBackward(false),
 	cameraLeft(false),
 	cameraRight(false),
+	cameraLeftTurn(false),
+	cameraRightTurn(false),
 	cameraSpeed(40.0f),
-	visibility(true),
-	tliquid(NULL)
+	boundaryVisble(true)
+#ifdef _USE_TERRAIN_LIQUID_
+	, tliquid(NULL)
+#endif
 	//mWater(NULL)
 {
 }
@@ -93,6 +97,14 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 		if (cameraRight) moveX = cameraSpeed;
 
 		mainCameraView.getCameraNode()->translate(moveX*evt.timeSinceLastFrame, 0.0f, moveZ*evt.timeSinceLastFrame, Ogre::Node::TS_LOCAL);
+	}
+	if (cameraLeftTurn || cameraRightTurn)
+	{
+		float aglYaw = 0.f;
+		if (cameraLeftTurn)		aglYaw = -1.1f;
+		if (cameraRightTurn)	aglYaw = 1.1f;
+
+		mainCameraView.getCameraNode()->yaw(Ogre::Degree(aglYaw), Ogre::Node::TS_WORLD);
 	}
 
 	//mWater->update(evt.timeSinceLastFrame);
@@ -187,10 +199,12 @@ void COgreMain::createInput(void)
 
 void COgreMain::destroyInput(void)
 {
-	inputManager->destroyInputObject(mMouse); mMouse = 0;
-	inputManager->destroyInputObject(mKeyboard); mKeyboard = 0;
+	inputManager->destroyInputObject(mMouse); 
+	mMouse = NULL;
+	inputManager->destroyInputObject(mKeyboard); 
+	mKeyboard = NULL;
 	OIS::InputManager::destroyInputSystem(inputManager); 
-	inputManager = 0;
+	inputManager = NULL;
 }
 
 void COgreMain::destroyWindow(void)
@@ -266,7 +280,7 @@ void COgreMain::createContent(void)
 	nodeAxis->setScale(1.f, 1.f, 1.f);
 
 	// 创建摄像头
-	mainCameraView.createCameraNode(mSceneMgr, "MainCamera", 0.05f, 50000.0f);
+	mainCameraView.createCameraNode(mSceneMgr, "MainCamera", 10.f, 10000.0f);
 
 	// 设置主要摄像头
 	Ogre::Vector3 mainCameraPos;
@@ -293,14 +307,14 @@ void COgreMain::createContent(void)
 #if _TERRAIN_SHOW_
 	// 地形
 	Entity* entTerra = mSceneMgr->createEntity("entTerra", "17002190PAN_2048.mesh");
-	entTerra->getSubEntity(1)->setVisible(visibility);
-	entTerra->getSubEntity(2)->setVisible(visibility);
-	entTerra->getSubEntity(3)->setVisible(visibility);
-	entTerra->getSubEntity(4)->setVisible(visibility);
-	entTerra->getSubEntity(5)->setVisible(!visibility);
-	entTerra->getSubEntity(6)->setVisible(!visibility);
-	entTerra->getSubEntity(7)->setVisible(!visibility);
-	entTerra->getSubEntity(8)->setVisible(!visibility);
+	entTerra->getSubEntity(1)->setVisible(boundaryVisble);
+	entTerra->getSubEntity(2)->setVisible(boundaryVisble);
+	entTerra->getSubEntity(3)->setVisible(boundaryVisble);
+	entTerra->getSubEntity(4)->setVisible(boundaryVisble);
+	entTerra->getSubEntity(5)->setVisible(!boundaryVisble);
+	entTerra->getSubEntity(6)->setVisible(!boundaryVisble);
+	entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
+	entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
 	SceneNode* nodeTerraBase = mSceneMgr->createSceneNode("nodeTerraBase");
 	nodeTerraBase->attachObject(entTerra);
 	nodeTerraBase->setPosition(-entTerra->getBoundingBox().getCenter());
@@ -310,16 +324,38 @@ void COgreMain::createContent(void)
 #endif
 	//nodeTerra->setVisible(false);
 
+#ifdef _USE_TERRAIN_LIQUID_
 	tliquid = new TerranLiquid;
 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
 	tliquid->setHeight(-15.f);
 	tliquid->setGridDensity(10.f);
 	tliquid->initialize();
+#endif
+
+// 	SceneNode* nodeTerraLiq = mSceneMgr->createSceneNode("nodeTerraLiq");
+// 	nodeTerraLiq->attachObject(tliquid);
+// 	mSceneMgr->getRootSceneNode()->addChild(nodeTerraLiq);
 
 // 	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
 // 	mWater->setWaterDustEnabled(true);
 // 	mWater->init();
 // 	mWater->setWaterHeight(300.0f);
+
+#if 1
+	Ogre::Plane oceanSurface;
+	oceanSurface.normal = Ogre::Vector3::UNIT_Y;
+	oceanSurface.d = 15.f;
+	Ogre::MeshManager::getSingleton().createPlane("OceanSurface",
+		Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		oceanSurface, entTerra->getBoundingBox().getMaximum().x - entTerra->getBoundingBox().getMinimum().x, 
+		entTerra->getBoundingBox().getMaximum().z - entTerra->getBoundingBox().getMinimum().z,
+		100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+
+	Entity* entOceanSurface = mSceneMgr->createEntity("entOceanSurface", "OceanSurface");
+	SceneNode* nodeOceanSurface = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanSurface");
+	nodeOceanSurface->attachObject(entOceanSurface);
+	entOceanSurface->setMaterialName("OceanCg");
+#endif
 }
 
 void COgreMain::destroyContent(void)
@@ -328,7 +364,9 @@ void COgreMain::destroyContent(void)
 	mainCameraView.destroyCameraNode(mSceneMgr);
 
 	//delete mWater;
+#ifdef _USE_TERRAIN_LIQUID_
 	delete tliquid;
+#endif
 
 	//Ogre::OverlayManager::getSingleton().destroy(mainOverlay);
 	//mainOverlay = NULL;
@@ -367,21 +405,29 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 	{
 		cameraRight = true;
 	}
+	else if (e.key == OIS::KC_LEFT)
+	{
+		cameraLeftTurn = true;
+	}
+	else if (e.key == OIS::KC_RIGHT)
+	{
+		cameraRightTurn = true;
+	}
 
 #if _TERRAIN_SHOW_
 	// 切换边界
 	if (e.key == OIS::KC_P)
 	{
 		Entity* entTerra = mSceneMgr->getEntity("entTerra");
-		visibility = !visibility;
-		entTerra->getSubEntity(1)->setVisible(visibility);
-		entTerra->getSubEntity(2)->setVisible(visibility);
-		entTerra->getSubEntity(3)->setVisible(visibility);
-		entTerra->getSubEntity(4)->setVisible(visibility);
-		entTerra->getSubEntity(5)->setVisible(!visibility);
-		entTerra->getSubEntity(6)->setVisible(!visibility);
-		entTerra->getSubEntity(7)->setVisible(!visibility);
-		entTerra->getSubEntity(8)->setVisible(!visibility);
+		boundaryVisble = !boundaryVisble;
+		entTerra->getSubEntity(1)->setVisible(boundaryVisble);
+		entTerra->getSubEntity(2)->setVisible(boundaryVisble);
+		entTerra->getSubEntity(3)->setVisible(boundaryVisble);
+		entTerra->getSubEntity(4)->setVisible(boundaryVisble);
+		entTerra->getSubEntity(5)->setVisible(!boundaryVisble);
+		entTerra->getSubEntity(6)->setVisible(!boundaryVisble);
+		entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
+		entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
 	}
 	// 不显示地形
 	if (e.key == OIS::KC_I)
@@ -412,6 +458,14 @@ bool COgreMain::keyReleased(const OIS::KeyEvent & e)
 	else if (e.key == OIS::KC_D)
 	{
 		cameraRight = false;
+	}
+	else if (e.key == OIS::KC_LEFT)
+	{
+		cameraLeftTurn = false;
+	}
+	else if (e.key == OIS::KC_RIGHT)
+	{
+		cameraRightTurn = false;
 	}
 
 	return true;

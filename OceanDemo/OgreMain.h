@@ -17,7 +17,12 @@
 
 #include "CameraController.h"
 //#include "OWWater.h"
+
+//#define _USE_TERRAIN_LIQUID_
+
+#ifdef _USE_TERRAIN_LIQUID_
 #include "TerranLiquid.h"
+#endif
 
 class COgreMain
 	: public Ogre::FrameListener,
@@ -68,7 +73,9 @@ private:
 	Ogre::OverlaySystem* mOverlaySystem;
 	Ogre::Overlay* mainOverlay;
 
+#ifdef _USE_TERRAIN_LIQUID_
 	TerranLiquid* tliquid;
+#endif // _USE_TERRAIN_LIQUID_
 
 	//OIS
 	OIS::InputManager* inputManager;
@@ -85,9 +92,11 @@ private:
 	bool cameraBackward;
 	bool cameraLeft;
 	bool cameraRight;
+	bool cameraLeftTurn;
+	bool cameraRightTurn;
 
 	// 边界可见性
-	bool visibility;
+	bool boundaryVisble;
 };
 
 #endif // !

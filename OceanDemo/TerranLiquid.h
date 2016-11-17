@@ -16,8 +16,8 @@
 
 const float eps = 0.001f;
 
-class TerranLiquid :
-	public Ogre::SimpleRenderable
+class TerranLiquid //:
+	//public Ogre::SimpleRenderable
 {
 public:
 	TerranLiquid();
@@ -56,6 +56,7 @@ private:
 	Ogre::Vector3 transPos;	// 位移
 	Ogre::Vector3 scale;	// 缩放
 
+	Ogre::AxisAlignedBox mBox;
 
 private:
 	// 海岸线
@@ -136,6 +137,7 @@ private:
 	void _createIndexData(void);
 
 	Ogre::VertexData* pVertex;
+	Ogre::IndexData* pIndex;
 
 private:
 	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)

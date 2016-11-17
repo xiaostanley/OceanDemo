@@ -24,7 +24,8 @@ TerranLiquid::TerranLiquid()
 	minz(1000000000.f),
 	maxx(0.f),
 	maxz(0.f),
-	pVertex(NULL)
+	pVertex(NULL),
+	pIndex(NULL)
 {
 	clList = new std::list<TerranLiquid::CoastLine>;
 }
@@ -56,6 +57,23 @@ void TerranLiquid::initialize(void)
 	// 获取深度数据（必须在生成OceanGrid之后才能进行）
 	// （只能在剔除无效点面后进行）
 	_getDepthData();
+
+//	_createVertexData();
+//	_createIndexData();
+
+#if 0
+	ManualObject* mobj = mSceneMgr->createManualObject("mobjoceangrid");
+	mobj->begin("Ocean2_Cg", RenderOperation::OT_TRIANGLE_LIST);
+	for (size_t i = 0; i < vertex_count; i++)
+		mobj->position(vertices[i]);
+	for (size_t i = 0; i < index_count; i += 3)
+		mobj->triangle(indices[i], indices[i + 2], indices[i + 1]);
+	mobj->end();
+	SceneNode* nodeMobj = mSceneMgr->createSceneNode("nodeMobjoceangrid");
+	nodeMobj->attachObject(mobj);
+	nodeMobj->showBoundingBox(true);
+	mSceneMgr->getRootSceneNode()->addChild(nodeMobj);
+#endif
 }
 
 Ogre::uint32 TerranLiquid::getTypeFlags() const
@@ -65,17 +83,19 @@ Ogre::uint32 TerranLiquid::getTypeFlags() const
 
 Ogre::Real TerranLiquid::getBoundingRadius(void) const
 {
-	return Math::Sqrt(std::max(mBox.getMaximum().squaredLength(), mBox.getMinimum().squaredLength()));
+	//return Math::Sqrt(std::max(mBox.getMaximum().squaredLength(), mBox.getMinimum().squaredLength()));
+	return 0.f;
 }
 
 Ogre::Real TerranLiquid::getSquaredViewDepth(const Ogre::Camera * cam) const
 {
-	const Vector3 vMin = mBox.getMinimum();
-	const Vector3 vMax = mBox.getMaximum();
-	const Vector3 vMid = ((vMin - vMax) * 0.5) + vMin;
-	const Vector3 vDist = cam->getDerivedPosition() - vMid;
-
-	return vDist.squaredLength();
+// 	const Vector3 vMin = mBox.getMinimum();
+// 	const Vector3 vMax = mBox.getMaximum();
+// 	const Vector3 vMid = ((vMin - vMax) * 0.5) + vMin;
+// 	const Vector3 vDist = cam->getDerivedPosition() - vMid;
+// 
+// 	return vDist.squaredLength();
+	return 0.f;
 }
 
 void TerranLiquid::_getCoastLines(void)
@@ -254,7 +274,7 @@ void TerranLiquid::_collectCoastLines(void)
 	}
 	delete clList;
 
-#if 1
+#if 0
 	for (size_t i = 0; i < clVecs.size(); i++)
 	{
 		ManualObject* mobj = mSceneMgr->createManualObject("mobjline" + Ogre::StringConverter::toString(i));
@@ -408,6 +428,9 @@ void TerranLiquid::_getMeshInfo(
 		ibuf->unlock();
 		current_offset = next_offset;
 	}
+
+	float ampitude = 10.f;
+	mBox = Ogre::AxisAlignedBox(minx, heightSeaLevel - ampitude, minz, maxx, heightSeaLevel + ampitude, maxz);
 
 #if 0
 	// debug
@@ -608,12 +631,28 @@ void TerranLiquid::_createVertexData(void)
 	}
 
 	pVertexBuffer->unlock();
-
+	//mRenderOp.vertexData = pVertex;
 }
 
 void TerranLiquid::_createIndexData(void)
 {
+	pIndex = new Ogre::IndexData;
+	pIndex->indexStart = 0;
+	pIndex->indexCount = index_count;
 
+	pIndex->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
+		HardwareIndexBuffer::IT_32BIT, pIndex->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+
+	unsigned short* pIdx = static_cast<unsigned short*>(pIndex->indexBuffer->lock(HardwareBuffer::HBL_DISCARD));
+	for (size_t i = 0; i < index_count; i++)
+	{
+		*pIdx++ = static_cast<unsigned short>(indices[i]);
+	}
+
+	pIndex->indexBuffer->unlock();
+// 	mRenderOp.indexData = pIndex;
+// 	mRenderOp.operationType = RenderOperation::OT_TRIANGLE_LIST;
+// 	mRenderOp.useIndexes = true;
 }
 
 void TerranLiquid::_removeInvalidData(const std::vector<bool>& isNotOceanMesh, int* clFaces, int countFaces)
