@@ -112,6 +112,10 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 
 	//mWater->update(evt.timeSinceLastFrame);
 
+	// 显示帧率
+	Ogre::OverlayElement* textArea = OverlayManager::getSingleton().getOverlayElement("CodeText");
+	textArea->setCaption(Ogre::DisplayString(L"FPS: ") + Ogre::DisplayString(Ogre::StringConverter::toString(mWindow->getLastFPS())));
+
 	return true;;
 }
 
@@ -296,8 +300,45 @@ void COgreMain::createContent(void)
 	mainCameraView.setViewportRect(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1, Ogre::ColourValue(0.0f, 0.0f, 0.0f), true);
 	mainCameraView.createViewport(mWindow);
 
-	//mainOverlay = Ogre::OverlayManager::getSingleton().create("mainOverlay");
-	//mainOverlay->show();
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	// 加载字体
+	Ogre::FontPtr font = Ogre::FontManager::getSingleton().create("SimHeiFont", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+	font->setSource("simhei.ttf");
+	font->setType(FT_TRUETYPE);
+	font->setTrueTypeSize(32);
+	font->setTrueTypeResolution(96);
+	font->addCodePointRange(Ogre::Font::CodePointRange(33, 166));
+	font->load();
+
+	// 创建overlay
+	mainOverlay = Ogre::OverlayManager::getSingleton().create("mainOverlay");
+	mainOverlay->setZOrder(254);
+	mainOverlay->show();
+
+	// 创建OverlayContainer
+	Ogre::OverlayContainer* ovContainer = static_cast<Ogre::OverlayContainer*>(Ogre::OverlayManager::getSingleton().createOverlayElement("BorderPanel", "Container"));
+	ovContainer->setMetricsMode(GMM_RELATIVE);
+	ovContainer->setPosition(0.f, 0.f);
+	ovContainer->setWidth(0.2f);
+	ovContainer->setHeight(0.07f);
+	ovContainer->setMaterialName("Core/StatsBlockCenter");
+	mainOverlay->add2D(ovContainer);
+
+	// 创建文字显示区域
+	Ogre::OverlayElement* textArea = OverlayManager::getSingleton().createOverlayElement("TextArea", "CodeText");
+	textArea->setMetricsMode(GMM_RELATIVE);
+	textArea->setPosition(0.01f, 0.01f);
+	textArea->setWidth(0.2f);
+	textArea->setHeight(0.1f);
+	textArea->setParameter("font_name", "SimHeiFont");
+	textArea->setParameter("char_height", Ogre::StringConverter::toString(Ogre::Real(0.05f)));
+	textArea->setParameter("horz_align", "left");
+	textArea->setColour(Ogre::ColourValue(1.f, 1.f, 1.f));
+	textArea->setCaption(Ogre::DisplayString("FPS"));
+	ovContainer->addChild(textArea);
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	//设置阴影及环境光
 	mSceneMgr->setShadowTechnique(Ogre::SHADOWTYPE_STENCIL_ADDITIVE);
@@ -442,6 +483,15 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 	{
 		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
 		nodeTerra->flipVisibility(true);
+	}
+	// Z-Fighting演示
+	if (e.key == OIS::KC_U)
+	{
+		mainCameraView.getCamera()->setNearClipDistance(0.1f);
+	}
+	else if (e.key == OIS::KC_Y)
+	{
+		mainCameraView.getCamera()->setNearClipDistance(10.f);
 	}
 #endif
 

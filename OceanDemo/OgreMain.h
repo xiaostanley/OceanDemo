@@ -14,6 +14,11 @@
 #include "OgreFileSystemLayer.h"
 #include "OgreOverlaySystem.h"
 #include "OgreOverlayManager.h"
+#include "OgreOverlay.h"
+#include "OgreFont.h"
+#include "OgreFontManager.h"
+#include "OgreOverlayElement.h"
+#include "OgreOverlayContainer.h"
 
 #include "CameraController.h"
 //#include "OWWater.h"
