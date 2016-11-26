@@ -36,6 +36,9 @@
     <ClInclude Include="GeoHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MeshGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -56,6 +59,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Ocean.material">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="ocean_Dupuy.material">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="ocean_Dupuy.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="oceanHLSL_Dupuy.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="HydraxDemo.hdx">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

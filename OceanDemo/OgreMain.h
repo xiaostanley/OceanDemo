@@ -20,8 +20,27 @@
 #include "OgreOverlayElement.h"
 #include "OgreOverlayContainer.h"
 
+#define _TERRAIN_SHOW_ 
+//#define _LAYERED_RENDERING_ 
+
+//#define _GL_RENDER_SYSTEM_
+//#define _USE_OGRE_WATER_
+//#define _USE_HYDRAX_
+
 #include "CameraController.h"
-//#include "OWWater.h"
+#include "MeshGenerator.h"
+#include "GeoHelper.h"
+
+#ifdef _USE_OGRE_WATER_
+#include "OWWater.h"
+#endif
+#ifdef _USE_HYDRAX_
+#include "Hydrax.h"
+#include "Noise/Perlin/Perlin.h"
+#include "Modules/ProjectedGrid/ProjectedGrid.h"
+#include "Modules/RadialGrid/RadialGrid.h"
+#include "Modules/SimpleGrid/SimpleGrid.h"
+#endif // _USE_HYDRAX_
 
 //#define _USE_TERRAIN_LIQUID_
 
@@ -69,6 +88,7 @@ public:
 	bool mousePressed(const OIS::MouseEvent& e, OIS::MouseButtonID id);
 	bool mouseReleased(const OIS::MouseEvent& e, OIS::MouseButtonID id);
 
+
 private:
 	//Ogre
 	Ogre::Root* mRoot;						// OGRE root
@@ -87,7 +107,9 @@ private:
 	OIS::Keyboard* mKeyboard;
 	OIS::Mouse* mMouse;
 
-	//OgreWater::Water* mWater;
+#ifdef _USE_OGRE_WATER_
+	OgreWater::Water* mWater;
+#endif
 
 	CameraController mainCameraView;
 	float cameraSpeed;

@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "OgreMain.h"
 
-#define _TERRAIN_SHOW_ 1
-
 using namespace Ogre;
+
+#ifdef _USE_HYDRAX_
+Hydrax::Hydrax* mHydrax = NULL;
+#endif // _USE_HYDRAX_
 
 COgreMain::COgreMain(void)
 	: mRoot(NULL),
@@ -25,7 +27,10 @@ COgreMain::COgreMain(void)
 #ifdef _USE_TERRAIN_LIQUID_
 	, tliquid(NULL)
 #endif
-	//mWater(NULL)
+#ifdef _USE_OGRE_WATER_
+	, mWater(NULL)
+#endif
+
 {
 }
 
@@ -38,8 +43,46 @@ void COgreMain::run(void)
 	//创建场景
 	createScene();
 
+#ifdef _LAYERED_RENDERING_
+
+	mWindow->setActive(true);
+	mWindow->setAutoUpdated(false);
+
+	Ogre::Viewport* mViewport = mWindow->getViewport(0);
+	mViewport->setAutoUpdated(false);
+
+	while (!mWindow->isClosed())
+	{
+		mWindow->_beginUpdate();
+
+		mainCameraView.getCamera()->setNearClipDistance(20.0f);
+		mainCameraView.getCamera()->setFarClipDistance(100000.f);
+		mViewport->setOverlaysEnabled(false);
+		mWindow->_updateViewport(mViewport);
+		mViewport->setOverlaysEnabled(true);
+
+		mViewport->setClearEveryFrame(true, Ogre::FBT_DEPTH);
+		mViewport->setSkiesEnabled(false);
+		mainCameraView.getCamera()->setNearClipDistance(0.1f);
+		mainCameraView.getCamera()->setFarClipDistance(20.f);
+		//mainCameraView.getCamera()->setPolygonMode(PM_WIREFRAME);
+		mWindow->_updateViewport(mViewport);
+		mainCameraView.getCamera()->setPolygonMode(PM_SOLID);
+		mViewport->setSkiesEnabled(true);
+		mViewport->setClearEveryFrame(true, Ogre::FBT_COLOUR | Ogre::FBT_DEPTH);
+
+		mWindow->_updateAutoUpdatedViewports();
+		mWindow->_endUpdate();
+
+		mWindow->swapBuffers();
+		mRoot->renderOneFrame();
+
+		Ogre::WindowEventUtilities::messagePump();
+	}
+#else
 	//启动渲染
 	mRoot->startRendering();
+#endif
 
 	//销毁场景
 	destroyScene();
@@ -110,13 +153,19 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 		mainCameraView.getCameraNode()->yaw(Ogre::Degree(aglYaw), Ogre::Node::TS_WORLD);
 	}
 
-	//mWater->update(evt.timeSinceLastFrame);
+#ifdef _USE_OGRE_WATER_
+	mWater->update(evt.timeSinceLastFrame);
+#endif
+#ifdef _USE_HYDRAX_
+	mHydrax->update(evt.timeSinceLastFrame);
+#endif // _USE_HYDRAX_
+
 
 	// 显示帧率
 	Ogre::OverlayElement* textArea = OverlayManager::getSingleton().getOverlayElement("CodeText");
-	textArea->setCaption(Ogre::DisplayString(L"FPS: ") + Ogre::DisplayString(Ogre::StringConverter::toString(mWindow->getLastFPS())));
+	textArea->setCaption(Ogre::DisplayString(L"FPS: ") + Ogre::DisplayString(Ogre::StringConverter::toString(mWindow->getBestFPS())));
 
-	return true;;
+	return true;
 }
 
 bool COgreMain::frameStarted(const Ogre::FrameEvent & evt)
@@ -145,7 +194,11 @@ void COgreMain::createRoot(void)
 	mRoot = NULL;
 	mRoot = OGRE_NEW Ogre::Root(pluginsPath, "", "ogre.log");
 
+#ifdef _GL_RENDER_SYSTEM_
+	Ogre::RenderSystem* rsys = mRoot->getRenderSystemByName("OpenGL Rendering Subsystem");
+#else
 	Ogre::RenderSystem* rsys = mRoot->getRenderSystemByName("Direct3D9 Rendering Subsystem");
+#endif
 	mRoot->setRenderSystem(rsys);
 
 	mRoot->initialise(false);
@@ -284,10 +337,10 @@ void COgreMain::createContent(void)
 	Ogre::Entity* axis = mSceneMgr->createEntity("axis", "Axis.mesh");
 	Ogre::SceneNode* nodeAxis = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeAxis");
 	nodeAxis->attachObject(axis);
-	nodeAxis->setScale(1.f, 1.f, 1.f);
+	nodeAxis->setScale(50.f, 50.f, 50.f);
 
 	// 创建摄像头
-	mainCameraView.createCameraNode(mSceneMgr, "MainCamera", 10.f, 10000.0f);
+	mainCameraView.createCameraNode(mSceneMgr, "MainCamera", 10.f, 99999*6.0f);	// 10 10000
 
 	// 设置主要摄像头
 	Ogre::Vector3 mainCameraPos;
@@ -340,6 +393,10 @@ void COgreMain::createContent(void)
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	// 设置雾效
+	//mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.0, 500.f, 5000.f);
+	//mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.001f);
+
 	//设置阴影及环境光
 	mSceneMgr->setShadowTechnique(Ogre::SHADOWTYPE_STENCIL_ADDITIVE);
 	mSceneMgr->setAmbientLight(Ogre::ColourValue(0.05f, 0.05f, 0.05f));
@@ -348,9 +405,9 @@ void COgreMain::createContent(void)
 	Ogre::Light* sunlight = mSceneMgr->createLight("sunlight");
 	sunlight->setType(Ogre::Light::LT_DIRECTIONAL);
 
-	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox");
+	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox", 99999*3, true);
 
-#if _TERRAIN_SHOW_
+#ifdef _TERRAIN_SHOW_
 	// 地形
 	Entity* entTerra = mSceneMgr->createEntity("entTerra", "17002190PAN_2048.mesh");
 	entTerra->getSubEntity(1)->setVisible(boundaryVisble);
@@ -382,28 +439,74 @@ void COgreMain::createContent(void)
 // 	nodeTerraLiq->attachObject(tliquid);
 // 	mSceneMgr->getRootSceneNode()->addChild(nodeTerraLiq);
 
-// 	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
-// 	mWater->setWaterDustEnabled(true);
-// 	mWater->init();
-// 	mWater->setWaterHeight(300.0f);
+#ifdef _USE_OGRE_WATER_
+	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
+	mWater->setWaterDustEnabled(true);
+	mWater->init();
+	mWater->setWaterHeight(300.0f);
+#endif // _USE_OGRE_WATER_
+
+#ifdef _USE_HYDRAX_
+	mHydrax = new Hydrax::Hydrax(mSceneMgr, mainCameraView.getCamera(), mWindow->getViewport(0));
+	Hydrax::Module::ProjectedGrid* mGrid = new Hydrax::Module::ProjectedGrid(mHydrax, new Hydrax::Noise::Perlin(),
+		Ogre::Plane(Ogre::Vector3::UNIT_Y, Ogre::Vector3(0.f, -15.f, 0.f)), 
+		Hydrax::MaterialManager::NM_VERTEX, Hydrax::Module::ProjectedGrid::Options());
+// 	Hydrax::Module::RadialGrid* mGrid = new Hydrax::Module::RadialGrid(mHydrax, new Hydrax::Noise::Perlin(),
+// 		Hydrax::MaterialManager::NM_VERTEX, Hydrax::Module::RadialGrid::Options());
+
+	mHydrax->setModule(static_cast<Hydrax::Module::Module*>(mGrid));
+	mHydrax->loadCfg("HydraxDemo.hdx");
+	mHydrax->create();
+
+#endif // _USE_HYDRAX_
 
 #if 1
+	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane1", "oceanplane.mesh");
+	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
+	nodeOs1->attachObject(entOs1);
+
+	Ogre::Entity* entOs2 = mSceneMgr->createEntity("OceanPlane2", "oceanplane.mesh");
+	SceneNode* nodeOs2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane2");
+	nodeOs2->attachObject(entOs2);
+	nodeOs2->translate(Ogre::Vector3(1000.f, 0.f, 0.f));
+
+	Ogre::Entity* entOs3 = mSceneMgr->createEntity("OceanPlane3", "oceanplane.mesh");
+	SceneNode* nodeOs3 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane3");
+	nodeOs3->attachObject(entOs3);
+	nodeOs3->translate(Ogre::Vector3(1000.f, 0.f, 1000.f));
+#endif
+
+#if 0
 	Ogre::Vector3 minVec = (entTerra->getBoundingBox().getMinimum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().x;
 	Ogre::Vector3 maxVec = (entTerra->getBoundingBox().getMaximum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().z;
 
 	float xgrid = Ogre::Math::Abs(maxVec.x - minVec.x);
 	float ygrid = Ogre::Math::Abs(maxVec.z - minVec.z);
+	
+	Ogre::String oceanMatlName = "Ocean2_HLSL_GLSL";
 
 	Ogre::Plane oceanSurface;
 	oceanSurface.normal = Ogre::Vector3::UNIT_Y;
 	oceanSurface.d = 15.f;
 	Ogre::MeshManager::getSingleton().createPlane("OceanSurface", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-		oceanSurface, xgrid, ygrid, 100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+		oceanSurface, xgrid, ygrid, 50, 50, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
 
 	Entity* entOceanSurface = mSceneMgr->createEntity("entOceanSurface", "OceanSurface");
 	SceneNode* nodeOceanSurface = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanSurface");
 	nodeOceanSurface->attachObject(entOceanSurface);
-	entOceanSurface->setMaterialName("Ocean2_HLSL_GLSL");
+	entOceanSurface->setMaterialName(oceanMatlName);
+
+// 	Ogre::Plane os2;
+// 	os2.normal = Ogre::Vector3::UNIT_Y;
+// 	os2.d = oceanSurface.d;
+// 	Ogre::MeshManager::getSingleton().createPlane("OceanSurface2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+// 		os2, xgrid, ygrid, 100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+// 	Entity* entOS2 = mSceneMgr->createEntity("entOS2", "OceanSurface2");
+// 	SceneNode* nodeOS2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOS2");
+// 	nodeOS2->attachObject(entOS2);
+// 	nodeOS2->translate(Ogre::Vector3(xgrid, 0.f, 0.f));
+// 	entOS2->setMaterialName(oceanMatlName);
+
 #endif
 }
 
@@ -412,7 +515,13 @@ void COgreMain::destroyContent(void)
 	mainCameraView.destroyViewport(mWindow);
 	mainCameraView.destroyCameraNode(mSceneMgr);
 
-	//delete mWater;
+#ifdef _USE_OGRE_WATER_
+	delete mWater;
+#endif
+#ifdef _USE_HYDRAX_
+	delete mHydrax;
+#endif // _USE_HYDRAX_
+
 #ifdef _USE_TERRAIN_LIQUID_
 	delete tliquid;
 #endif
@@ -463,7 +572,7 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		cameraRightTurn = true;
 	}
 
-#if _TERRAIN_SHOW_
+#ifdef _TERRAIN_SHOW_
 	// 切换边界
 	if (e.key == OIS::KC_P)
 	{
@@ -485,14 +594,14 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		nodeTerra->flipVisibility(true);
 	}
 	// Z-Fighting演示
-	if (e.key == OIS::KC_U)
-	{
-		mainCameraView.getCamera()->setNearClipDistance(0.1f);
-	}
-	else if (e.key == OIS::KC_Y)
-	{
-		mainCameraView.getCamera()->setNearClipDistance(10.f);
-	}
+// 	if (e.key == OIS::KC_U)
+// 	{
+// 		mainCameraView.getCamera()->setNearClipDistance(0.1f);
+// 	}
+// 	else if (e.key == OIS::KC_Y)
+// 	{
+// 		mainCameraView.getCamera()->setNearClipDistance(10.f);
+// 	}
 #endif
 
 	return true;
@@ -547,3 +656,4 @@ bool COgreMain::mouseReleased(const OIS::MouseEvent & e, OIS::MouseButtonID id)
 {
 	return true;
 }
+

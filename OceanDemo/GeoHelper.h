@@ -74,6 +74,21 @@ public:
 		outputFile.close();
 	}
 
+	static void exportPlyModel(const char* path, float* points, int sizeOfPoints, unsigned int* faces, int sizeOfFaces)
+	{
+		int* ifaces = new int[3 * sizeOfFaces];
+		for (int i = 0; i < sizeOfFaces; i++)
+		{
+			int tidx = 3 * i;
+			ifaces[tidx] = (int)faces[tidx];
+			ifaces[tidx + 1] = (int)faces[tidx + 1];
+			ifaces[tidx + 2] = (int)faces[tidx + 2];
+		}
+
+		exportPlyModel(path, points, sizeOfPoints, ifaces, sizeOfFaces);
+		delete[] ifaces;
+	}
+
 	static void exportPlyModel(const char* path, GeoPoint3D* points, int sizeOfPoints, int* faces, int sizeOfFaces)
 	{
 		std::ofstream outputFile(path);
