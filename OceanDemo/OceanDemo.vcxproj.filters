@@ -57,21 +57,4 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Ocean.material">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="ocean_Dupuy.material">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="ocean_Dupuy.vert">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="oceanHLSL_Dupuy.vert">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="HydraxDemo.hdx">
-      <Filter>Resource Files</Filter>
-    </None>
-  </ItemGroup>
 </Project>

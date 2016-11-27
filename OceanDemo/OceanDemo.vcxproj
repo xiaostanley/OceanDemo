@@ -96,9 +96,8 @@
       <AdditionalDependencies>libboost_chrono-vc140-mt-gd-1_59.lib;libboost_date_time-vc140-mt-gd-1_59.lib;libboost_system-vc140-mt-gd-1_59.lib;libboost_thread-vc140-mt-gd-1_59.lib;OgreMain_d.lib;OgreRTShaderSystem_d.lib;OgreTerrain_d.lib;OgrePaging_d.lib;OgreVolume_d.lib;OgreOverlay_d.lib;OIS_d.lib;cg.lib;libnoise.lib;%(AdditionalDependencies);GPUDT.lib;Hydrax.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)Ocean.material $(OGRE_VC14_V1_10_0)\media\materials\scripts
-copy $(ProjectDir)ocean_Dupuy.material $(OGRE_VC14_V1_10_0)\media\materials\scripts
-copy $(ProjectDir)ocean_Dupuy.vert $(OGRE_VC14_V1_10_0)\media\materials\programs\GLSL</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -133,9 +132,8 @@ copy $(ProjectDir)ocean_Dupuy.vert $(OGRE_VC14_V1_10_0)\media\materials\programs
       <AdditionalOptions>/SAFESEH:No %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)Ocean.material $(OGRE_VC14_V1_10_0)\media\materials\scripts
-copy $(ProjectDir)ocean_Dupuy.material $(OGRE_VC14_V1_10_0)\media\materials\scripts
-copy $(ProjectDir)ocean_Dupuy.vert $(OGRE_VC14_V1_10_0)\media\materials\programs\GLSL</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -177,13 +175,6 @@ copy $(ProjectDir)ocean_Dupuy.vert $(OGRE_VC14_V1_10_0)\media\materials\programs
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="TerranLiquid.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="HydraxDemo.hdx" />
-    <None Include="Ocean.material" />
-    <None Include="oceanHLSL_Dupuy.vert" />
-    <None Include="ocean_Dupuy.material" />
-    <None Include="ocean_Dupuy.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

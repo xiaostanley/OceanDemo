@@ -14,11 +14,13 @@ public:
 	static void generateMesh(
 		float* vertices,				// 顶点三维坐标
 		float* normals,					// 顶点法向量（可为NULL）
+		float* tangents,				// 顶点切向量（可为NULL）
 		float* textures,				// 顶点纹理坐标（可为NULL）
 		Ogre::RGBA* colors,				// 顶点颜色值（可为NULL）
 		int numVertices,				// 顶点数量
 		unsigned int* indices,			// 三角形面片索引
 		int numFaces,					// 三角形面片数量
+		Ogre::AxisAlignedBox* box,		// 包围盒
 		const Ogre::String& nameMatl,	// 材质名称
 		const Ogre::String& filePath,	// 存储路径
 		const Ogre::String& nameMesh	// Mesh名称
@@ -52,6 +54,18 @@ public:
 			posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
 				offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
 			posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), normals, true);
+			vbind->setBinding(bindCounter++, posVertexBuffer);
+		}
+
+		// 顶点切向量数据
+		if (tangents != NULL)
+		{
+			offset = 0;
+			vdecl->addElement(bindCounter, offset, Ogre::VET_FLOAT3, Ogre::VES_TANGENT);
+			offset += Ogre::VertexElement::getTypeSize(Ogre::VET_FLOAT3);
+			posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
+				offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+			posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), tangents, true);
 			vbind->setBinding(bindCounter++, posVertexBuffer);
 		}
 
@@ -92,23 +106,30 @@ public:
 		submeshPtr->setMaterialName(nameMatl);
 
 		// 包围盒
-		float minx = vertices[0];
-		float miny = vertices[1];
-		float minz = vertices[2];
-		float maxx = minx;
-		float maxy = miny;
-		float maxz = minz;
-		for (size_t i = 0; i < (size_t)numVertices; i += 3)
+		if (box == NULL)
 		{
-			minx = std::min(minx, vertices[i]);
-			miny = std::min(miny, vertices[i + 1]);
-			minz = std::min(minz, vertices[i + 2]);
-			maxx = std::max(maxx, vertices[i]);
-			maxy = std::max(maxy, vertices[i + 1]);
-			maxz = std::max(maxz, vertices[i + 2]);
-		}
+			float minx = vertices[0];
+			float miny = vertices[1];
+			float minz = vertices[2];
+			float maxx = minx;
+			float maxy = miny;
+			float maxz = minz;
+			for (size_t i = 0; i < (size_t)numVertices; i += 3)
+			{
+				minx = std::min(minx, vertices[i]);
+				miny = std::min(miny, vertices[i + 1]);
+				minz = std::min(minz, vertices[i + 2]);
+				maxx = std::max(maxx, vertices[i]);
+				maxy = std::max(maxy, vertices[i + 1]);
+				maxz = std::max(maxz, vertices[i + 2]);
+			}
 
-		meshPtr->_setBounds(Ogre::AxisAlignedBox(minx, miny, minz, maxx, maxy, maxz));
+			meshPtr->_setBounds(Ogre::AxisAlignedBox(minx, miny, minz, maxx, maxy, maxz));
+		}
+		else
+		{
+			meshPtr->_setBounds(*box);
+		}
 		
 		meshPtr->load();
 		meshPtr->touch();
