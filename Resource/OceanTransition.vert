@@ -50,7 +50,7 @@ VS_OUTPUT main(VS_INPUT IN,
 	#define NWAVES 2
 	Wave waveShallow[NWAVES] = 
 	{
-		{ waveFreqShallow, waveAmpShallow * 1.5, 0.0, float2(-1, 0) },
+		{ waveFreqShallow, waveAmpShallow, 0.0, float2(-1, 0) },
 		{ waveFreqShallow, waveAmpShallow, 1.2, float2(0, 1) }
 	};
 	Wave waveDeep[NWAVES] =

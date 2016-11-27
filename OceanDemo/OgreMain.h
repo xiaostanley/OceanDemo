@@ -21,6 +21,7 @@
 #include "OgreOverlayContainer.h"
 
 #define _TERRAIN_SHOW_ 
+#define _USE_TERRAIN_LIQUID_
 //#define _LAYERED_RENDERING_ 
 
 //#define _GL_RENDER_SYSTEM_
@@ -41,8 +42,6 @@
 #include "Modules/RadialGrid/RadialGrid.h"
 #include "Modules/SimpleGrid/SimpleGrid.h"
 #endif // _USE_HYDRAX_
-
-//#define _USE_TERRAIN_LIQUID_
 
 #ifdef _USE_TERRAIN_LIQUID_
 #include "TerranLiquid.h"

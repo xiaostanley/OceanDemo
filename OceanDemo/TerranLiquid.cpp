@@ -56,7 +56,7 @@ void TerranLiquid::initialize(void)
 
 	// 获取深度数据（必须在生成OceanGrid之后才能进行）
 	// （只能在剔除无效点面后进行）
-	_getDepthData();
+//	_getDepthData();
 
 //	_createVertexData();
 //	_createIndexData();
@@ -274,7 +274,7 @@ void TerranLiquid::_collectCoastLines(void)
 	}
 	delete clList;
 
-#if 0
+#if 1
 	for (size_t i = 0; i < clVecs.size(); i++)
 	{
 		ManualObject* mobj = mSceneMgr->createManualObject("mobjline" + Ogre::StringConverter::toString(i));

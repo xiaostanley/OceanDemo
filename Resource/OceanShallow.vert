@@ -47,7 +47,7 @@ VS_OUTPUT main(VS_INPUT IN,
 	#define NWAVES 2
 	Wave wave[NWAVES] = 
 	{
-		{ waveFreq, waveAmp * 1.5, 0.0, float2(-1, 0) },
+		{ waveFreq, waveAmp, 0.0, float2(-1, 0) },
 		{ waveFreq, waveAmp, 1.2, float2(0, 1) }
 	};
 
