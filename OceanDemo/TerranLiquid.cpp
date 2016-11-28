@@ -59,16 +59,8 @@ void TerranLiquid::initialize(void)
 	// 查找每个面片与海平面的交线
 	// 并添加到clList链表中
 
-	_getMeshInfo(
-		entTerra->getMesh(),
-		vertex_count,
-		vertices,
-		index_count,
-		indices,
-		transPos,
-		Quaternion::IDENTITY,
-		scale
-	);
+	_getMeshInfo(entTerra->getMesh(), vertex_count, vertices,
+		index_count, indices, transPos, Quaternion::IDENTITY, scale);
 
 #if 0
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/base_terrain_mesh.ply";
@@ -85,7 +77,7 @@ void TerranLiquid::initialize(void)
 #ifdef _SHALLOW_OCEAN_STRIP_
 #ifdef _TRANSITION_OCEAN_STRIP_ 
 	// 提取过渡区域边界
-	//_getTransitionBoundary();
+	_getTransitionBoundary();
 #endif
 #endif
 
@@ -218,7 +210,7 @@ void TerranLiquid::_collectCoastLines(void)
 		auto viter = clPoints.begin();
 		for (; viter != clPoints.end(); viter++)
 		{
-			if (_absValue(sv.x, viter->x) < eps && _absValue(sv.y, viter->y) < eps && _absValue(sv.z, viter->z) < eps)
+			if (viter->positionEquals(sv))
 			{
 				iter->startIdx = std::distance(clPoints.begin(), viter);
 				break;
@@ -233,7 +225,7 @@ void TerranLiquid::_collectCoastLines(void)
 		viter = clPoints.begin();
 		for (; viter != clPoints.end(); viter++)
 		{
-			if (_absValue(ev.x, viter->x) < eps && _absValue(ev.y, viter->y) < eps && _absValue(ev.z, viter->z) < eps)
+			if (viter->positionEquals(ev))
 			{
 				iter->endIdx = std::distance(clPoints.begin(), viter);
 				break;
@@ -406,7 +398,7 @@ void TerranLiquid::_getTransitionBoundary()
 	{
 		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
 		{
-			if (citer == clvsbiter->end())		// 最后一条边
+			if (((++citer)--) == clvsbiter->end())		// 最后一条边
 			{
 				auto piter = citer; piter--;
 				if (citer->endIdx == piter->endIdx)
@@ -440,29 +432,43 @@ void TerranLiquid::_getTransitionBoundary()
 	{
 		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
 		{
-			const Vector3 cnormal(citer->endVertex - citer->startVertex);	// 本段边界的方向
-			Vector3 npl = cnormal.crossProduct(n);		// 海平面上与本段边界方向垂直的方向
-			npl.normalise();
-			Vector3 nplc = -npl;	// 反方向
+			Vector3 cnormal((citer->startVertex - citer->endVertex).normalisedCopy());	// 本段边界的方向
+			Vector3 npl[2];
+			npl[0] = (cnormal.crossProduct(n)).normalisedCopy();		// 海平面上与本段边界方向垂直的方向
+			npl[1] = -npl[0];	// 反方向
 
-			if (citer == clvsbiter->begin())	// 首条边界
+			if (citer == clvsbiter->begin())	// 首条边需计算startVertex的对应点
 			{
-				Vector3 p = citer->startVertex + widthTrStrip * npl;
-				auto rs = _pointsIntersect(p + Vector3(0.f, 10000.f, 0.f));
-				if (rs.first && (p.y + 10000.f - rs.second < depthShallowOcean))
-					;
+				if (!_addPointToGrid(npl[0], citer->startVertex))	// 当前边的startVertex端点
+					_addPointToGrid(npl[1], citer->startVertex);
 			}
-			else if (citer == clvsbiter->end())	// 最后一条边界
+
+			// 剩下的边只计算endVertex的对应点
+			if (((++citer)--) == clvsbiter->end())	// 最后一条边
 			{
-				auto niter = citer; niter++;
+				if (!_addPointToGrid(npl[0], citer->endVertex))
+					_addPointToGrid(npl[1], citer->endVertex);
 			}
-			else
+			else // 剩余的边 
 			{
-				auto piter = citer; piter--;
-				
+				auto niter = citer; niter++;	// 下一条边
+				Vector3 nnormal = (niter->endVertex - niter->startVertex).normalisedCopy();	// 注意计算方式与cnormal相反
+				if (!nnormal.positionEquals(-cnormal))	// n与c不共线
+				{
+					// 计算c边与n边的角平分线方向
+					Vector3 angleBisector((nnormal.midPoint(cnormal)).normalisedCopy());
+
+					if (!_addPointToGrid(angleBisector, citer->endVertex))
+						_addPointToGrid(-angleBisector, citer->endVertex);
+				}
 			}
 		}
 	}
+
+#if 0
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/testgrid.ply";
+	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), (int*)NULL, 0);
+#endif
 
 #if 0
 	ManualObject* mobj = mSceneMgr->createManualObject("mobjlinedd");
@@ -498,6 +504,23 @@ std::pair<bool, Ogre::Real> TerranLiquid::_pointsIntersect(const Ogre::Vector3& 
 		}
 	}
 	return std::make_pair(false, 0.f);
+}
+
+bool TerranLiquid::_addPointToGrid(const Ogre::Vector3& npl, const Ogre::Vector3& p)
+{
+	Vector3 pr = p + widthTrStrip * npl;
+	auto rs = _pointsIntersect(pr + Vector3(0.f, 10000.f, 0.f));
+	if (rs.first && (pr.y + 10000.f - rs.second < depthShallowOcean))
+	{
+		auto viter = clPoints.begin();
+		for (; viter != clPoints.end(); viter++)
+			if (viter->positionEquals(pr))
+				break;
+		if (clPoints.end() == viter)	// 当前clPoints中没有p点
+			clPoints.push_back(pr);
+		return true;
+	}
+	return false;
 }
 
 #endif

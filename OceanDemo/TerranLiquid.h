@@ -94,7 +94,7 @@ private:
 	float depthShallowOcean;	// 浅海水深
 
 #ifdef _TRANSITION_OCEAN_STRIP_
-	const float widthTrStrip = 3.f;		// 过渡区域宽度
+	const float widthTrStrip = 20.f;		// 过渡区域宽度
 
 	// 浅水区域边界 指向clList中的元素
 	std::vector<bool> isInSwBoundaries;		// clList中的元素是否为浅水区域边界
@@ -141,6 +141,8 @@ private:
 	// 提取过渡区域边界
 	void _getTransitionBoundary(void);
 
+	bool _addPointToGrid(const Ogre::Vector3& npl, const Ogre::Vector3& p);
+
 	// 射线检测
 	std::pair<bool, Ogre::Real> _pointsIntersect(const Ogre::Vector3& p);
 #endif
@@ -170,10 +172,6 @@ private:
 // 	Ogre::IndexData* pIndex;
 
 private:
-	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)
-	{
-		return Ogre::Math::Abs(lhs - rhs);
-	}
 
 	inline bool _isPointInTriangle2D(
 		const Ogre::Vector3& tp0,
