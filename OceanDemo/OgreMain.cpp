@@ -431,6 +431,7 @@ void COgreMain::createContent(void)
 	tliquid = new TerranLiquid;
 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
 	tliquid->setHeight(-15.f + 3.8f * 2);
+	tliquid->setDepthShallowOcean(-15.f);
 	tliquid->setGridDensity(10.f);
 	tliquid->initialize();
 #endif
@@ -534,7 +535,7 @@ void COgreMain::createContent(void)
 		delete[] indices;
 	}
 #endif
-#if 1
+#if 0
 	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane1", "oceanplane.mesh");
 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
 	nodeOs1->attachObject(entOs1);

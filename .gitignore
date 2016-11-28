@@ -245,3 +245,5 @@ ModelManifest.xml
 /OceanDemo/OWAnimatedMesh.h
 /OceanDemo/OWWater.cpp
 /OceanDemo/OWWater.h
+/base_terrain_mesh.ply
+/ocean_grid_simp.ply

@@ -14,6 +14,8 @@
 #include <set>
 #include <map>
 
+#define _SHALLOW_OCEAN_STRIP_
+
 const float eps = 0.001f;
 
 class TerranLiquid //:
@@ -36,16 +38,21 @@ public:
 	// 设置海平面高度
 	void setHeight(float heightSeaLevel);
 
+#ifdef _SHALLOW_OCEAN_STRIP_
+	// 设置浅海水深
+	void setDepthShallowOcean(float depthShallowOcean);
+#endif
+
 	// 设置海面网格密度
 	void setGridDensity(float density);
 
 	// 初始化
 	void initialize(void);
 
-public:
-	virtual Ogre::uint32 getTypeFlags() const;
-	virtual Ogre::Real getBoundingRadius(void) const;
-	virtual Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const;
+// public:
+// 	virtual Ogre::uint32 getTypeFlags() const;
+// 	virtual Ogre::Real getBoundingRadius(void) const;
+// 	virtual Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const;
 
 private:
 	Ogre::Root* mRoot;
@@ -75,12 +82,17 @@ private:
 	};
 
 	typedef std::list<TerranLiquid::CoastLine> CoastLineList;
-	std::vector<CoastLineList*> clVecs;
+	std::vector<CoastLineList*> clVecs;	// 有序海岸线数据
 
 	std::vector<Ogre::Vector3> clPoints;
 	
 	std::list<TerranLiquid::CoastLine>* clList;
 	float heightSeaLevel;	// 海平面高度
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+	float depthShallowOcean;	// 浅海水深
+#endif
+	///////////////////////////////////////////////////
 
 	size_t vertex_count, index_count;
 	Ogre::Vector3* vertices;
@@ -95,8 +107,6 @@ private:
 	float depthScale;	// 深度纹理缩放因子
 
 private:
-	// 提取海岸线
-	void _getCoastLines(void);
 	
 	// 初步提取海岸线（无序）
 	void _getInitialCoastLines(void);
@@ -129,15 +139,15 @@ private:
 		int countFaces
 	);
 
-private:
-	// 创建VertexData
-	void _createVertexData(void);
-
-	// 创建IndexData
-	void _createIndexData(void);
-
-	Ogre::VertexData* pVertex;
-	Ogre::IndexData* pIndex;
+// private:
+// 	// 创建VertexData
+// 	void _createVertexData(void);
+// 
+// 	// 创建IndexData
+// 	void _createIndexData(void);
+// 
+// 	Ogre::VertexData* pVertex;
+// 	Ogre::IndexData* pIndex;
 
 private:
 	inline Ogre::Real _absValue(Ogre::Real lhs, Ogre::Real rhs)
