@@ -426,8 +426,8 @@ void TerranLiquid::_getTransitionBoundary()
 	const size_t rows = static_cast<size_t>(mBox.getSize().z / (0.2f * density));
 	std::vector<std::vector<bool>> raster(rows, std::vector<bool>(cols, false));
 
-	float ratioX = mBox.getSize().x / (float)cols;
-	float ratioZ = mBox.getSize().z / (float)rows;
+	float ratioX = mBox.getSize().x / (float)(cols + 1);
+	float ratioZ = mBox.getSize().z / (float)(rows + 1);
 
 	for (size_t row = 0; row < rows; row++)
 	{
@@ -440,25 +440,53 @@ void TerranLiquid::_getTransitionBoundary()
 		}
 	}
 
-#if 0
-	std::vector<Ogre::Vector3> points;
+	//  ˝◊÷ÕºœÒ¥¶¿Ì-≈Ú’ÕÀ„∑®
+
+	const int radiusDl = static_cast<int>(widthTrStrip + 0.5f);
+	std::vector<std::vector<bool>> rasterDilated(raster);
+
 	for (size_t row = 0; row < rows; row++)
 	{
 		for (size_t col = 0; col < cols; col++)
 		{
 			if (raster[row][col])
-				points.push_back(Ogre::Vector3(col / (float)cols * mBox.getSize().x + mBox.getMinimum().x,
-					heightSeaLevel, row / (float)rows * mBox.getSize().z + mBox.getMinimum().z));
+			{
+				size_t colLf = 0, colRt = 0, rowTp = 0, rowBn = 0;
+				int offset = (int)col - radiusDl;
+				colLf = (offset < 0) ? 0 : (size_t)offset;
+				offset = (int)col + radiusDl;
+				colRt = (offset > cols - 1) ? (cols - 1) : (size_t)offset;
+				offset = (int)row - radiusDl;
+				rowTp = (offset < 0) ? 0 : (size_t)offset;
+				offset = (int)row + radiusDl;
+				rowBn = (offset > rows - 1) ? (rows - 1) : (size_t)offset;
+
+				for (size_t trow = rowTp; trow <= rowBn; trow++)
+					for (size_t tcol = colLf; tcol <= colRt; tcol++)
+					{
+						if (Math::Pow((float)trow - (float)row, 2.f) + Math::Pow((float)tcol - (float)col, 2.f) <= Math::Pow(radiusDl, 2.f))
+							rasterDilated[trow][tcol] = true;
+					}
+			}
+		}
+	}
+
+#if 1
+	std::vector<Ogre::Vector3> points;
+	for (size_t row = 0; row < rows; row++)
+	{
+		for (size_t col = 0; col < cols; col++)
+		{
+			if (/*raster*/rasterDilated[row][col])
+				points.push_back(Ogre::Vector3(col * ratioX + mBox.getMinimum().x,
+					heightSeaLevel, row * ratioZ + mBox.getMinimum().z));
 		}
 	}
 #endif
 
-	// ≈Ú’Õ
-
-
 #if 1
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/testgrid.ply";
-	//Helper::exportPlyModel(path, &points[0], points.size(), (int*)NULL, 0);
+	Helper::exportPlyModel(path, &points[0], points.size(), (int*)NULL, 0);
 	//Helper::exportPlyModel(path, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
 	//Helper::exportPlyModelWithEdges(path, &clSwBdPoints[0], clSwBdPoints.size(), &clSwBdLines[0], clSwBdLines.size() / 2);
 #endif
