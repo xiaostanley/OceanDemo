@@ -419,6 +419,50 @@ void TerranLiquid::_getTransitionBoundary()
 		}
 	}
 
+#if 1
+	// 先将边界信息和高度信息光栅化
+
+	const size_t cols = static_cast<size_t>(mBox.getSize().x / (0.2f * density));
+	const size_t rows = static_cast<size_t>(mBox.getSize().z / (0.2f * density));
+	std::vector<std::vector<bool>> raster(rows, std::vector<bool>(cols, false));
+
+	float ratioX = mBox.getSize().x / (float)cols;
+	float ratioZ = mBox.getSize().z / (float)rows;
+
+	for (size_t row = 0; row < rows; row++)
+	{
+		for (size_t col = 0; col < cols; col++)
+		{
+			Vector3 p(col * ratioX + mBox.getMinimum().x, heightSeaLevel, row * ratioZ + mBox.getMinimum().z);
+			auto rs = _pointsIntersect(p + Vector3(0.f, 10000.f, 0.f));
+			if (rs.first && (p.y + 10000.f - rs.second > depthShallowOcean))
+				raster[row][col] = true;
+		}
+	}
+
+#if 0
+	std::vector<Ogre::Vector3> points;
+	for (size_t row = 0; row < rows; row++)
+	{
+		for (size_t col = 0; col < cols; col++)
+		{
+			if (raster[row][col])
+				points.push_back(Ogre::Vector3(col / (float)cols * mBox.getSize().x + mBox.getMinimum().x,
+					heightSeaLevel, row / (float)rows * mBox.getSize().z + mBox.getMinimum().z));
+		}
+	}
+#endif
+
+	// 膨胀
+
+
+#if 1
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/testgrid.ply";
+	//Helper::exportPlyModel(path, &points[0], points.size(), (int*)NULL, 0);
+	//Helper::exportPlyModel(path, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
+	//Helper::exportPlyModelWithEdges(path, &clSwBdPoints[0], clSwBdPoints.size(), &clSwBdLines[0], clSwBdLines.size() / 2);
+#endif
+#else
 	// 遍历clVecsSwBoundaries，计算每条边界两个端点在水平面上的法向量
 	// 结合该端点在与其相连的下一条边界的法向量（依然在水平面上）
 	// 求出平均的法向量（正反两个方向），并沿着此二方向向外平移一定距离
@@ -427,6 +471,10 @@ void TerranLiquid::_getTransitionBoundary()
 
 	// 海平面法向量
 	const Vector3 n(Vector3::UNIT_Y);
+
+	// debug
+	std::vector<Ogre::Vector3> clSwBdPoints;
+	std::vector<int> clSwBdLines;
 
 	for (auto clvsbiter : clVecsSwBoundaries)
 	{
@@ -439,15 +487,46 @@ void TerranLiquid::_getTransitionBoundary()
 
 			if (citer == clvsbiter->begin())	// 首条边需计算startVertex的对应点
 			{
-				if (!_addPointToGrid(npl[0], citer->startVertex))	// 当前边的startVertex端点
-					_addPointToGrid(npl[1], citer->startVertex);
+				//if (!_addPointToGrid(npl[0], citer->startVertex, clPoints))	// 当前边的startVertex端点
+				//	_addPointToGrid(npl[1], citer->startVertex, clPoints);
+				if (!_addPointToGrid(npl[0], citer->startVertex, clSwBdPoints))
+				{
+					if (!_addPointToGrid(npl[1], citer->startVertex, clSwBdPoints))
+					{
+						if (citer->startVertex.x == mBox.getMaximum().x || citer->startVertex.x == mBox.getMinimum().x)
+						{
+							Vector3 nplt[2];  nplt[0] = Vector3::UNIT_Z;  nplt[1] = Vector3::NEGATIVE_UNIT_Z;
+							if (!_addPointToGrid(nplt[0], citer->startVertex, clSwBdPoints))
+								_addPointToGrid(nplt[1], citer->startVertex, clSwBdPoints);
+						}
+						else if (citer->startVertex.z == mBox.getMaximum().z || citer->startVertex.z == mBox.getMinimum().z)
+						{
+							Vector3 nplt[2];  nplt[0] = Vector3::UNIT_X;  nplt[1] = Vector3::NEGATIVE_UNIT_X;
+							if (!_addPointToGrid(nplt[0], citer->startVertex, clSwBdPoints))
+								_addPointToGrid(nplt[1], citer->startVertex, clSwBdPoints);
+						}
+					}
+				}
 			}
 
 			// 剩下的边只计算endVertex的对应点
 			if (((++citer)--) == clvsbiter->end())	// 最后一条边
 			{
-				if (!_addPointToGrid(npl[0], citer->endVertex))
-					_addPointToGrid(npl[1], citer->endVertex);
+				//if (!_addPointToGrid(npl[0], citer->endVertex, clPoints))
+				//	_addPointToGrid(npl[1], citer->endVertex, clPoints);
+				if (!_addPointToGrid(npl[0], citer->endVertex, clSwBdPoints))
+				{
+					if (_addPointToGrid(npl[1], citer->endVertex, clSwBdPoints))
+					{
+						clSwBdLines.push_back(clSwBdPoints.size() - 2);
+						clSwBdLines.push_back(clSwBdPoints.size() - 1);
+					}
+				}
+				else
+				{
+					clSwBdLines.push_back(clSwBdPoints.size() - 2);
+					clSwBdLines.push_back(clSwBdPoints.size() - 1);
+				}
 			}
 			else // 剩余的边 
 			{
@@ -458,16 +537,25 @@ void TerranLiquid::_getTransitionBoundary()
 					// 计算c边与n边的角平分线方向
 					Vector3 angleBisector((nnormal.midPoint(cnormal)).normalisedCopy());
 
-					if (!_addPointToGrid(angleBisector, citer->endVertex))
-						_addPointToGrid(-angleBisector, citer->endVertex);
+					//if (!_addPointToGrid(angleBisector, citer->endVertex, clPoints))
+					//	_addPointToGrid(-angleBisector, citer->endVertex, clPoints);
+					if (!_addPointToGrid(angleBisector, citer->endVertex, clSwBdPoints))
+					{
+						if (_addPointToGrid(-angleBisector, citer->endVertex, clSwBdPoints))
+						{
+							clSwBdLines.push_back(clSwBdPoints.size() - 2);
+							clSwBdLines.push_back(clSwBdPoints.size() - 1);
+						}
+					}
+					else
+					{
+						clSwBdLines.push_back(clSwBdPoints.size() - 2);
+						clSwBdLines.push_back(clSwBdPoints.size() - 1);
+					}
 				}
 			}
 		}
 	}
-
-#if 0
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/testgrid.ply";
-	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), (int*)NULL, 0);
 #endif
 
 #if 0
@@ -506,18 +594,18 @@ std::pair<bool, Ogre::Real> TerranLiquid::_pointsIntersect(const Ogre::Vector3& 
 	return std::make_pair(false, 0.f);
 }
 
-bool TerranLiquid::_addPointToGrid(const Ogre::Vector3& npl, const Ogre::Vector3& p)
+bool TerranLiquid::_addPointToGrid(const Ogre::Vector3& npl, const Ogre::Vector3& p, std::vector<Ogre::Vector3>& points)
 {
 	Vector3 pr = p + widthTrStrip * npl;
 	auto rs = _pointsIntersect(pr + Vector3(0.f, 10000.f, 0.f));
 	if (rs.first && (pr.y + 10000.f - rs.second < depthShallowOcean))
 	{
-		auto viter = clPoints.begin();
-		for (; viter != clPoints.end(); viter++)
+		auto viter = points.begin();
+		for (; viter != points.end(); viter++)
 			if (viter->positionEquals(pr))
 				break;
-		if (clPoints.end() == viter)	// 当前clPoints中没有p点
-			clPoints.push_back(pr);
+		if (points.end() == viter)	// 当前clPoints中没有p点
+			points.push_back(pr);
 		return true;
 	}
 	return false;

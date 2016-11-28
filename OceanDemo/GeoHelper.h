@@ -169,6 +169,32 @@ public:
 		exportPlyModel(path, points, sizeOfPoints, ifaces, sizeOfFaces);
 		delete[] ifaces;
 	}
+
+	static void exportPlyModelWithEdges(const char* path, Ogre::Vector3* points, int sizeOfPoints, int* edges, int sizeOfEdges)
+	{
+		std::ofstream outputFile(path);
+		outputFile << "ply" << std::endl;
+		outputFile << "format ascii 1.0" << std::endl;
+		outputFile << "element vertex " << sizeOfPoints << std::endl;
+		outputFile << "property float x" << std::endl;
+		outputFile << "property float y" << std::endl;
+		outputFile << "property float z" << std::endl;
+		outputFile << "element edge " << sizeOfEdges << std::endl;
+		outputFile << "property int vertex1" << std::endl;
+		outputFile << "property int vertex2" << std::endl;
+		outputFile << "end_header" << std::endl;
+		for (int pIdx = 0; pIdx < sizeOfPoints; pIdx++)
+		{
+			outputFile << std::setprecision(15) << points[pIdx].x << " "
+				<< points[pIdx].y << " "
+				<< points[pIdx].z << std::endl;
+		}
+		for (int fIdx = 0; fIdx < sizeOfEdges; fIdx++)
+		{
+			outputFile << edges[2 * fIdx + 0] << " " << edges[2 * fIdx + 1] << std::endl;
+		}
+		outputFile.close();
+	}
 };
 
 #endif

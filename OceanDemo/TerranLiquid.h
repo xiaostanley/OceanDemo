@@ -141,7 +141,11 @@ private:
 	// 提取过渡区域边界
 	void _getTransitionBoundary(void);
 
-	bool _addPointToGrid(const Ogre::Vector3& npl, const Ogre::Vector3& p);
+	bool _addPointToGrid(
+		const Ogre::Vector3& npl,			// 海平面内的法向量
+		const Ogre::Vector3& p,				// 端点
+		std::vector<Ogre::Vector3>& points	// 目标点集
+	);
 
 	// 射线检测
 	std::pair<bool, Ogre::Real> _pointsIntersect(const Ogre::Vector3& p);

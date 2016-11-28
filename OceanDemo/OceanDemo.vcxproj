@@ -88,6 +88,8 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(LIBNOISE_HOME)\include;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>
+      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -121,6 +123,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(LIBNOISE_HOME)\include;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>
+      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
