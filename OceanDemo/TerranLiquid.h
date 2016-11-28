@@ -15,6 +15,7 @@
 #include <map>
 
 #define _SHALLOW_OCEAN_STRIP_
+#define _TRANSITION_OCEAN_STRIP_
 
 const float eps = 0.001f;
 
@@ -81,17 +82,24 @@ private:
 		{}
 	};
 
+	std::vector<Ogre::Vector3> clPoints;
+
 	typedef std::list<TerranLiquid::CoastLine> CoastLineList;
 	std::vector<CoastLineList*> clVecs;	// 有序海岸线数据
-
-	std::vector<Ogre::Vector3> clPoints;
-	
 	std::list<TerranLiquid::CoastLine>* clList;
+
 	float heightSeaLevel;	// 海平面高度
 
 #ifdef _SHALLOW_OCEAN_STRIP_
 	float depthShallowOcean;	// 浅海水深
+
+#ifdef _TRANSITION_OCEAN_STRIP_
+	// 浅水区域边界 指向clList中的元素
+	std::vector<bool> isInSwBoundaries;		// clList中的元素是否为浅水区域边界
+	std::vector<CoastLineList*> clVecsSwBoundaries;	// 有序浅水区域边界数据
+#endif // _TRANSITION_OCEAN_STRIP_
 #endif
+
 	///////////////////////////////////////////////////
 
 	size_t vertex_count, index_count;
@@ -125,6 +133,13 @@ private:
 	
 	// 整理海岸线信息
 	void _collectCoastLines(void);
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+	// 提取过渡区域边界
+	void _getTransitionBoundary(void);
+#endif
+#endif
 
 	// 形成海面网格
 	void _generateOceanGrid(void);
@@ -171,6 +186,12 @@ private:
 		double t3 = static_cast<double>(pc.x) * static_cast<double>(pa.y) - static_cast<double>(pc.y)*static_cast<double>(pa.x);
 
 		return (t1*t2 >= 0.0 && t1*t3 >= 0.0);
+	}
+
+	inline bool _isIntersected(const Ogre::Vector3* p, float height)
+	{
+		return (!((p[0].y < height && p[1].y < height && p[2].y < height) ||
+			(p[0].y > height && p[1].y > height && p[2].y > height)));
 	}
 };
 

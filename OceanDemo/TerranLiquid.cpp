@@ -82,8 +82,15 @@ void TerranLiquid::initialize(void)
 	// 整理海岸线信息（使之有序）
 	_collectCoastLines();
 
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+	// 提取过渡区域边界
+	_getTransitionBoundary();
+#endif
+#endif
+
 	// 生成海面网格
-	_generateOceanGrid();
+//	_generateOceanGrid();
 
 	// 获取深度数据（必须在生成OceanGrid之后才能进行）
 	// （只能在剔除无效点面后进行）
@@ -118,28 +125,6 @@ void TerranLiquid::initialize(void)
 #endif
 }
 
-/*Ogre::uint32 TerranLiquid::getTypeFlags() const
-{
-	return Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK;
-}
-
-Ogre::Real TerranLiquid::getBoundingRadius(void) const
-{
-	//return Math::Sqrt(std::max(mBox.getMaximum().squaredLength(), mBox.getMinimum().squaredLength()));
-	return 0.f;
-}
-
-Ogre::Real TerranLiquid::getSquaredViewDepth(const Ogre::Camera * cam) const
-{
-// 	const Vector3 vMin = mBox.getMinimum();
-// 	const Vector3 vMax = mBox.getMaximum();
-// 	const Vector3 vMid = ((vMin - vMax) * 0.5) + vMin;
-// 	const Vector3 vDist = cam->getDerivedPosition() - vMid;
-// 
-// 	return vDist.squaredLength();
-	return 0.f;
-}*/
-
 void TerranLiquid::_getInitialCoastLines(void)
 {
 	// 海平面参数
@@ -160,47 +145,47 @@ void TerranLiquid::_getInitialCoastLines(void)
 		p[1] = vertices[indices[i + 1]];
 		p[2] = vertices[indices[i + 2]];
 
-		if (!((p[0].y < heightSeaLevel && p[1].y < heightSeaLevel && p[2].y < heightSeaLevel) ||
-			(p[0].y > heightSeaLevel && p[1].y > heightSeaLevel && p[2].y > heightSeaLevel)))
+		if (_isIntersected(p, heightSeaLevel))
 		{
 			// 遍历三条边 查找与海平面交点
 			// 存储两个交点
 			std::vector<Vector3> pi;
 			for (size_t j = 0; j < 3; j++)
 			{
-				const Vector3& tp0 = p[j];
-				const Vector3& tp1 = p[(j + 1) % 3];
+				const Vector3& tp0 = p[j];  const Vector3& tp1 = p[(j + 1) % 3];
 				Vector3 d(tp1 - tp0);
 				if ((tp0.y - heightSeaLevel) * (tp1.y - heightSeaLevel) < 0.f)	// 存在交点
-				{
-					float t = (dp - tp0.dotProduct(n)) / d.dotProduct(n);
-					pi.push_back(tp0 + t * d);
-				}
+					pi.push_back(tp0 + (dp - tp0.dotProduct(n)) / d.dotProduct(n) * d);
 			}
 			clList->push_back(TerranLiquid::CoastLine(-1, -1, pi[0], pi[1]));
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+			isInSwBoundaries.push_back(false);
+#endif
+#endif
 		}
 
 #ifdef _SHALLOW_OCEAN_STRIP_
 		// 浅海水深
-		if (!((p[0].y < depthShallowOcean && p[1].y < depthShallowOcean && p[2].y < depthShallowOcean) ||
-			(p[0].y > depthShallowOcean && p[1].y > depthShallowOcean && p[2].y > depthShallowOcean)))
+		if (_isIntersected(p, depthShallowOcean))
 		{
 			// 遍历三条边 查找与海平面交点
 			// 存储两个交点
 			std::vector<Vector3> pi;
 			for (size_t j = 0; j < 3; j++)
 			{
-				const Vector3& tp0 = p[j];
-				const Vector3& tp1 = p[(j + 1) % 3];
+				const Vector3& tp0 = p[j];  const Vector3& tp1 = p[(j + 1) % 3];
 				Vector3 d(tp1 - tp0);
 				if ((tp0.y - depthShallowOcean) * (tp1.y - depthShallowOcean) < 0.f)	// 存在交点
-				{
-					float t = (dpsw - tp0.dotProduct(n)) / d.dotProduct(n);
-					pi.push_back(tp0 + t * d);
-				}
+					pi.push_back(tp0 + (dpsw - tp0.dotProduct(n)) / d.dotProduct(n) * d);
 			}
 			pi[0].y = pi[1].y = heightSeaLevel;
 			clList->push_back(TerranLiquid::CoastLine(-1, -1, pi[0], pi[1]));
+
+#ifdef _TRANSITION_OCEAN_STRIP_
+			isInSwBoundaries.push_back(true);
+#endif
 		}
 #endif
 	}
@@ -222,9 +207,41 @@ void TerranLiquid::_getInitialCoastLines(void)
 #endif
 }
 
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+void TerranLiquid::_getTransitionBoundary()
+{
+	// 遍历clSwBoundaries
+	// 计算每条边界两个端点在水平面上的法向量
+	// 结合该端点在与其相连的下一条边界的法向量（依然在水平面上）
+	// 求出平均的法向量（正反两个方向）
+	// 并沿着此二方向向外平移一定距离
+	// 判断其对应的地形高程是否小于depthShallowOcean
+	// 小则为深水区，否则为浅水区
+
+
+#if 0
+	ManualObject* mobj = mSceneMgr->createManualObject("mobjlinedd");
+	mobj->begin("TestDemodd", RenderOperation::OT_LINE_LIST);
+	for (auto iter = clSwBoundaries.begin(); iter != clSwBoundaries.end(); iter++)
+	{
+		mobj->position((*iter)->startVertex);
+		mobj->colour(Ogre::ColourValue::Blue);
+		mobj->position((*iter)->endVertex);
+		mobj->colour(Ogre::ColourValue::Blue);
+	}
+	mobj->end();
+	SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObjdd");
+	nodeObj->attachObject(mobj);
+	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
+#endif
+}
+#endif
+#endif
+
 void TerranLiquid::_collectCoastLines(void)
 {
-	// 确定clList中每条边两个顶点的索引
+	// 确定clList中每条边两个顶点的索引(startIdx和endIdx)
 	for (auto iter = clList->begin(); iter != clList->end(); iter++)
 	{
 		const Ogre::Vector3& sv = iter->startVertex;
@@ -278,11 +295,27 @@ void TerranLiquid::_collectCoastLines(void)
 		tclList->push_back(clList->front());
 		clList->erase(clList->begin());
 
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+		bool isSwBoundaries = false;
+		if (isInSwBoundaries.front())
+			isSwBoundaries = true;
+		isInSwBoundaries.erase(isInSwBoundaries.begin());
+#endif // _TRANSITION_OCEAN_STRIP_
+#endif // _SHALLOW_OCEAN_STRIP_
+
 		// 遍历clList中剩余的元素，若能与tclList的头部或尾部相接
 		// 则将其从clList中删除，并在tclList头部或尾部插入
 		while (true)
 		{
 			bool isExisted = false;	// clList中是否还有能加入到tclList中的线段？
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+			auto isSwBdIter = isInSwBoundaries.begin();
+#endif
+#endif
+
 			for (auto iter = clList->begin(); iter != clList->end();)
 			{
 				const TerranLiquid::CoastLine& fr = tclList->front();
@@ -293,15 +326,32 @@ void TerranLiquid::_collectCoastLines(void)
 					isExisted = true;
 					tclList->push_front(*iter);
 					iter = clList->erase(iter);
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+					isSwBdIter = isInSwBoundaries.erase(isSwBdIter);
+#endif
+#endif
 				}
 				else if (iter->startIdx == bk.startIdx || iter->startIdx == bk.endIdx || iter->endIdx == bk.startIdx || iter->endIdx == bk.endIdx)
 				{
 					isExisted = true;
 					tclList->push_back(*iter);
 					iter = clList->erase(iter);
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+					isSwBdIter = isInSwBoundaries.erase(isSwBdIter);
+#endif
+#endif
 				}
 				else
+				{
 					iter++;
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+					isSwBdIter++;
+#endif
+#endif
+				}
 			}
 
 			// clList中已不存在能加入到tclList中的线段 退出循环
@@ -310,6 +360,13 @@ void TerranLiquid::_collectCoastLines(void)
 		}
 
 		clVecs.push_back(tclList);
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_
+		if (isSwBoundaries)
+			clVecsSwBoundaries.push_back(tclList);
+#endif // _TRANSITION_OCEAN_STRIP_
+#endif // _SHALLOW_OCEAN_STRIP_
 	}
 	delete clList;
 
@@ -340,6 +397,228 @@ void TerranLiquid::_collectCoastLines(void)
 		nodeObj->attachObject(mobj);
 		mSceneMgr->getRootSceneNode()->addChild(nodeObj);
 	}
+#endif
+#if 0
+	for (size_t i = 0; i < clVecsSwBoundaries.size(); i++)
+	{
+		ManualObject* mobj = mSceneMgr->createManualObject("mobjlinets" + Ogre::StringConverter::toString(i));
+		mobj->begin("TestDemo", RenderOperation::OT_LINE_LIST);
+		for (CoastLineList::iterator iter = clVecsSwBoundaries[i]->begin(); iter != clVecsSwBoundaries[i]->end(); iter++)
+		{
+			mobj->position(iter->startVertex);
+			if (i % 3 == 0)
+				mobj->colour(Ogre::ColourValue::White);
+			else if (i % 3 == 1)
+				mobj->colour(Ogre::ColourValue::Red);
+			else
+				mobj->colour(Ogre::ColourValue::Green);
+			mobj->position(iter->endVertex);
+			if (i % 3 == 0)
+				mobj->colour(Ogre::ColourValue::White);
+			else if (i % 3 == 1)
+				mobj->colour(Ogre::ColourValue::Red);
+			else
+				mobj->colour(Ogre::ColourValue::Green);
+		}
+		mobj->end();
+		SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObjTs" + Ogre::StringConverter::toString(i));
+		nodeObj->attachObject(mobj);
+		mSceneMgr->getRootSceneNode()->addChild(nodeObj);
+	}
+#endif
+}
+
+void TerranLiquid::_generateOceanGrid(void)
+{
+	// 建立离散点集 作为海面网格点集
+
+	// 四个角点
+	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, minz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, minz));
+	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, maxz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, maxz));
+
+	// 边界点
+	for (float step = minx + density; step < maxx; step += density)
+	{
+		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, minz));
+		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, maxz));
+	}
+	for (float step = minz + density; step < maxz; step += density)
+	{
+		clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, step));
+		clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, step));
+	}
+
+	// 内部点
+	for (float xstep = minx + density; xstep < maxx; xstep += density)
+	{
+		for (float ystep = minz + density; ystep < maxz; ystep += density)
+		{
+			clPoints.push_back(Ogre::Vector3(xstep, heightSeaLevel, ystep));
+		}
+	}
+
+	GeoPoint3D* verticesPtr = new GeoPoint3D[clPoints.size()];
+	for (size_t i = 0; i < clPoints.size(); i++)
+		verticesPtr[i] = GeoPoint3D(clPoints[i].x, clPoints[i].z, clPoints[i].y);
+
+	// 约束边
+	int countConstraint = 0;
+	for (size_t i = 0; i < clVecs.size(); i++)
+		countConstraint += clVecs[i]->size();
+	int* constraints = new int[2 * countConstraint];
+	for (size_t i = 0, j = 0; i < clVecs.size(); i++)
+	{
+		const auto plist = clVecs[i];
+		for (auto iter = plist->begin(); iter != plist->end(); iter++)
+		{
+			constraints[j++] = iter->startIdx;
+			constraints[j++] = iter->endIdx;
+		}
+	}
+
+	int* clFaces = NULL;
+	int countFaces = 0;
+
+	// 建立三角形网格
+	std::unique_ptr<GPUDT> gpuDT(new GPUDT);
+	gpuDT->setInputPoints(verticesPtr, clPoints.size());
+	gpuDT->setInputConstraints(constraints, countConstraint);
+	gpuDT->computeDT(&clFaces, countFaces);
+
+	delete[] verticesPtr;
+	delete[] constraints;
+
+#if 0
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
+	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
+	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), faces, countFaces);
+#endif
+
+	// 遍历faces中所有面片
+	// 计算每个面片中心点在地形mesh中的对应高度
+	// 判断当前面片是否应删除
+
+	std::vector<bool> isShallowMesh(countFaces, false);
+
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
+	{
+		int tidx = 3 * i;
+		const auto& p0 = clPoints[clFaces[tidx]];
+		const auto& p1 = clPoints[clFaces[tidx + 1]];
+		const auto& p2 = clPoints[clFaces[tidx + 2]];
+
+		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
+		cp.y = 10000.f;
+
+		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
+		for (size_t j = 0; j < index_count; j += 3)
+		{
+			const auto& tp0 = vertices[indices[j]];
+			const auto& tp1 = vertices[indices[j + 1]];
+			const auto& tp2 = vertices[indices[j + 2]];
+
+			if (_isPointInTriangle2D(tp0, tp1, tp2, cp))
+			{
+				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
+				if (rs.first)
+				{
+					float th = cp.y - rs.second;
+					if (
+						th < heightSeaLevel			// 当前海面面片重心高度高于其对应的垂直地形点高程
+#ifdef _SHALLOW_OCEAN_STRIP_
+						&& th > depthShallowOcean
+#endif
+						)
+						isShallowMesh[i] = true;
+					break;
+				}
+			}
+		}
+	}
+
+#if 0
+	// 	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp.ply";
+	// 	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp1.ply";
+	Helper::exportPlyModel(path2, &cpp[0], cpp.size(), (int*)NULL, 0);
+#endif
+
+	// 删除无效点和无效面片
+	_removeInvalidData(isShallowMesh, clFaces, countFaces);
+
+	gpuDT->releaseMemory();
+}
+
+void TerranLiquid::_removeInvalidData(
+	const std::vector<bool>& facesDeleted, 
+	int* clFaces, 
+	int countFaces
+)
+{
+	std::vector<int> clFacesLeft;
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
+	{
+		if (facesDeleted[i])
+		{
+			clFacesLeft.push_back(clFaces[3 * i]);
+			clFacesLeft.push_back(clFaces[3 * i + 1]);
+			clFacesLeft.push_back(clFaces[3 * i + 2]);
+		}
+	}
+
+#if 0
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
+	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &clFacesLeft[0], clFacesLeft.size() / 3);
+#endif
+
+	// clPoints中每个点所共享的面片
+	std::vector<std::vector<int>> nrClFacesPerVertex(clPoints.size());
+	for (size_t i = 0; i < clFacesLeft.size(); i++)
+	{
+		nrClFacesPerVertex[clFacesLeft[i]].push_back(i / 3);
+	}
+
+	// 更新面片对应顶点索引
+
+	std::vector<Ogre::Vector3> clPointsLeft;
+
+	// key-value: clPoints索引-clPointsLeft索引
+	std::map<size_t, size_t> vertexIndicesUd;
+
+	for (size_t i = 0; i < clPoints.size(); i++)
+	{
+		if (nrClFacesPerVertex[i].size() != 0)
+		{
+			vertexIndicesUd.insert(std::map<size_t, size_t>::value_type(i, vertexIndicesUd.size()));
+			clPointsLeft.push_back(clPoints[i]);
+		}
+	}
+
+	for (auto iter = clFacesLeft.begin(); iter != clFacesLeft.end(); iter++)
+	{
+		auto viter = vertexIndicesUd.find(*iter);
+		if (viter != vertexIndicesUd.end())
+			*iter = viter->second;
+	}
+
+	// 更新
+	delete[] vertices;
+	delete[] indices;
+
+	// 删除掉无效点之后的点集
+	vertices = new Ogre::Vector3[clPointsLeft.size()];
+	indices = new unsigned int[clFacesLeft.size() * 3];
+	std::copy(clPointsLeft.begin(), clPointsLeft.end(), vertices);
+	std::copy(clFacesLeft.begin(), clFacesLeft.end(), indices);
+	vertex_count = clPointsLeft.size();
+	index_count = clFacesLeft.size();
+
+#if 1
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_simp.ply";
+	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
+	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
 #endif
 }
 
@@ -475,129 +754,6 @@ void TerranLiquid::setHeight(float heightSeaLevel)
 	this->heightSeaLevel = heightSeaLevel;
 }
 
-void TerranLiquid::_generateOceanGrid(void)
-{
-	// 建立离散点集 作为海面网格点集
-	
-	// 四个角点
-	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, minz));
-	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, minz));
-	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, maxz));
-	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, maxz));
-
-	// 边界点
-	for (float step = minx + density; step < maxx; step += density)
-	{
-		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, minz));
-		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, maxz));
-	}
-	for (float step = minz + density; step < maxz; step += density)
-	{
-		clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, step));
-		clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, step));
-	}
-
-	// 内部点
-	for (float xstep = minx + density; xstep < maxx; xstep += density)
-	{
-		for (float ystep = minz + density; ystep < maxz; ystep += density)
-		{
-			clPoints.push_back(Ogre::Vector3(xstep, heightSeaLevel, ystep));
-		}
-	}
-
-	GeoPoint3D* verticesPtr = new GeoPoint3D[clPoints.size()];
-	for (size_t i = 0; i < clPoints.size(); i++)
-		verticesPtr[i] = GeoPoint3D(clPoints[i].x, clPoints[i].z, clPoints[i].y);
-	
-	// 约束边
-	int countConstraint = 0;
-	for (size_t i = 0; i < clVecs.size(); i++)
-		countConstraint += clVecs[i]->size();
-	int* constraints = new int[2 * countConstraint];
-	for (size_t i = 0, j = 0; i < clVecs.size(); i++)
-	{
-		const auto plist = clVecs[i];
-		for (auto iter = plist->begin(); iter != plist->end(); iter++)
-		{
-			constraints[j++] = iter->startIdx;
-			constraints[j++] = iter->endIdx;
-		}
-	}
-
-	int* clFaces = NULL;
-	int countFaces = 0;
-
-	// 建立三角形网格
-	std::unique_ptr<GPUDT> gpuDT(new GPUDT);
-	gpuDT->setInputPoints(verticesPtr, clPoints.size());
-	gpuDT->setInputConstraints(constraints, countConstraint);
-	gpuDT->computeDT(&clFaces, countFaces);
-
-	delete[] verticesPtr;
-	delete[] constraints;
-
-#if 0
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
-	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
-	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), faces, countFaces);
-#endif
-
-	// 遍历faces中所有面片
-	// 计算每个面片中心点在地形mesh中的对应高度
-	// 判断当前面片是否应删除
-
-	std::vector<bool> isOceanMesh(countFaces, false);
-
-	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
-	{
-		int tidx = 3 * i;
-		const auto& p0 = clPoints[clFaces[tidx]];
-		const auto& p1 = clPoints[clFaces[tidx + 1]];
-		const auto& p2 = clPoints[clFaces[tidx + 2]];
-
-		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
-		cp.y = 10000.f;
-
-		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
-		for (size_t j = 0; j < index_count; j += 3)
-		{
-			const auto& tp0 = vertices[indices[j]];
-			const auto& tp1 = vertices[indices[j + 1]];
-			const auto& tp2 = vertices[indices[j + 2]];
-
-			if (_isPointInTriangle2D(tp0, tp1, tp2, cp))
-			{
-				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
-				if (rs.first)
-				{
-					float th = cp.y - rs.second;
-					if (
-						th < heightSeaLevel			// 当前海面面片重心高度高于其对应的垂直地形点高程
-#ifdef _SHALLOW_OCEAN_STRIP_
-						&& th > depthShallowOcean
-#endif
-						)
-						isOceanMesh[i] = true;
-					break;
-				}
-			}
-		}
-	}
-
-#if 0
-// 	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp.ply";
-// 	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp1.ply";
-	Helper::exportPlyModel(path2, &cpp[0], cpp.size(), (int*)NULL, 0);
-#endif
-
-	// 删除无效点和无效面片
-	_removeInvalidData(isOceanMesh, clFaces, countFaces);
-
-	gpuDT->releaseMemory();
-}
-
 void TerranLiquid::setGridDensity(float density)
 {
 	this->density = density;
@@ -678,77 +834,32 @@ void TerranLiquid::_createIndexData(void)
 	}
 
 	pIndex->indexBuffer->unlock();
-// 	mRenderOp.indexData = pIndex;
-// 	mRenderOp.operationType = RenderOperation::OT_TRIANGLE_LIST;
-// 	mRenderOp.useIndexes = true;
+	// 	mRenderOp.indexData = pIndex;
+	// 	mRenderOp.operationType = RenderOperation::OT_TRIANGLE_LIST;
+	// 	mRenderOp.useIndexes = true;
 }*/
 
-void TerranLiquid::_removeInvalidData(const std::vector<bool>& isOceanMesh, int* clFaces, int countFaces)
+/*Ogre::uint32 TerranLiquid::getTypeFlags() const
 {
-	std::vector<int> clFacesLeft;
-	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
-	{
-		if (isOceanMesh[i])
-		{
-			clFacesLeft.push_back(clFaces[3 * i]);
-			clFacesLeft.push_back(clFaces[3 * i + 1]);
-			clFacesLeft.push_back(clFaces[3 * i + 2]);
-		}
-	}
-
-#if 0
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
-	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &clFacesLeft[0], clFacesLeft.size() / 3);
-#endif
-
-	// clPoints中每个点所共享的面片
-	std::vector<std::vector<int>> nrClFacesPerVertex(clPoints.size());
-	for (size_t i = 0; i < clFacesLeft.size(); i++)
-	{
-		nrClFacesPerVertex[clFacesLeft[i]].push_back(i / 3);
-	}
-
-	// 更新面片对应顶点索引
-
-	std::vector<Ogre::Vector3> clPointsLeft;
-
-	// key-value: clPoints索引-clPointsLeft索引
-	std::map<size_t, size_t> vertexIndicesUd;
-	
-	for (size_t i = 0; i < clPoints.size(); i++)
-	{
-		if (nrClFacesPerVertex[i].size() != 0)
-		{
-			vertexIndicesUd.insert(std::map<size_t, size_t>::value_type(i, vertexIndicesUd.size()));
-			clPointsLeft.push_back(clPoints[i]);
-		}
-	}
-	
-	for (auto iter = clFacesLeft.begin(); iter != clFacesLeft.end(); iter++)
-	{
-		auto viter = vertexIndicesUd.find(*iter);
-		if (viter != vertexIndicesUd.end())
-			*iter = viter->second;
-	}
-
-	// 更新
-	delete[] vertices;
-	delete[] indices;
-	
-	// 删除掉无效点之后的点集
-	vertices = new Ogre::Vector3[clPointsLeft.size()];
-	indices = new unsigned int[clFacesLeft.size() * 3];
-	std::copy(clPointsLeft.begin(), clPointsLeft.end(), vertices);
-	std::copy(clFacesLeft.begin(), clFacesLeft.end(), indices);
-	vertex_count = clPointsLeft.size();
-	index_count = clFacesLeft.size();
-
-#if 1
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_simp.ply";
-	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
-	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
-#endif
+return Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK;
 }
+
+Ogre::Real TerranLiquid::getBoundingRadius(void) const
+{
+	//return Math::Sqrt(std::max(mBox.getMaximum().squaredLength(), mBox.getMinimum().squaredLength()));
+	return 0.f;
+}
+
+Ogre::Real TerranLiquid::getSquaredViewDepth(const Ogre::Camera * cam) const
+{
+	// 	const Vector3 vMin = mBox.getMinimum();
+	// 	const Vector3 vMax = mBox.getMaximum();
+	// 	const Vector3 vMid = ((vMin - vMax) * 0.5) + vMin;
+	// 	const Vector3 vDist = cam->getDerivedPosition() - vMid;
+	//
+	// 	return vDist.squaredLength();
+	return 0.f;
+}*/
 
 void TerranLiquid::_getDepthData(void)
 {
