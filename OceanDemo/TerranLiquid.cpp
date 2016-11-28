@@ -85,12 +85,12 @@ void TerranLiquid::initialize(void)
 #ifdef _SHALLOW_OCEAN_STRIP_
 #ifdef _TRANSITION_OCEAN_STRIP_ 
 	// 提取过渡区域边界
-	_getTransitionBoundary();
+	//_getTransitionBoundary();
 #endif
 #endif
 
 	// 生成海面网格
-//	_generateOceanGrid();
+	_generateOceanGrid();
 
 	// 获取深度数据（必须在生成OceanGrid之后才能进行）
 	// （只能在剔除无效点面后进行）
@@ -207,38 +207,6 @@ void TerranLiquid::_getInitialCoastLines(void)
 #endif
 }
 
-#ifdef _SHALLOW_OCEAN_STRIP_
-#ifdef _TRANSITION_OCEAN_STRIP_ 
-void TerranLiquid::_getTransitionBoundary()
-{
-	// 遍历clSwBoundaries
-	// 计算每条边界两个端点在水平面上的法向量
-	// 结合该端点在与其相连的下一条边界的法向量（依然在水平面上）
-	// 求出平均的法向量（正反两个方向）
-	// 并沿着此二方向向外平移一定距离
-	// 判断其对应的地形高程是否小于depthShallowOcean
-	// 小则为深水区，否则为浅水区
-
-
-#if 0
-	ManualObject* mobj = mSceneMgr->createManualObject("mobjlinedd");
-	mobj->begin("TestDemodd", RenderOperation::OT_LINE_LIST);
-	for (auto iter = clSwBoundaries.begin(); iter != clSwBoundaries.end(); iter++)
-	{
-		mobj->position((*iter)->startVertex);
-		mobj->colour(Ogre::ColourValue::Blue);
-		mobj->position((*iter)->endVertex);
-		mobj->colour(Ogre::ColourValue::Blue);
-	}
-	mobj->end();
-	SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObjdd");
-	nodeObj->attachObject(mobj);
-	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
-#endif
-}
-#endif
-#endif
-
 void TerranLiquid::_collectCoastLines(void)
 {
 	// 确定clList中每条边两个顶点的索引(startIdx和endIdx)
@@ -256,7 +224,7 @@ void TerranLiquid::_collectCoastLines(void)
 				break;
 			}
 		}
-		if (viter == clPoints.end())
+		if (viter == clPoints.end())	// 当前clPoints中没有sv点
 		{
 			iter->startIdx = clPoints.size();
 			clPoints.push_back(sv);
@@ -271,7 +239,7 @@ void TerranLiquid::_collectCoastLines(void)
 				break;
 			}
 		}
-		if (viter == clPoints.end())
+		if (viter == clPoints.end())	// 当前clPoints中没有ev点
 		{
 			iter->endIdx = clPoints.size();
 			clPoints.push_back(ev);
@@ -315,7 +283,6 @@ void TerranLiquid::_collectCoastLines(void)
 			auto isSwBdIter = isInSwBoundaries.begin();
 #endif
 #endif
-
 			for (auto iter = clList->begin(); iter != clList->end();)
 			{
 				const TerranLiquid::CoastLine& fr = tclList->front();
@@ -427,6 +394,114 @@ void TerranLiquid::_collectCoastLines(void)
 	}
 #endif
 }
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+void TerranLiquid::_getTransitionBoundary()
+{
+	// 调整clVecsSwBoundaries中所有区域边界线中每条边两个端点的顺序
+	// 使呈现（前后边的）链式连接关系
+
+	for (auto clvsbiter : clVecsSwBoundaries)
+	{
+		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
+		{
+			if (citer == clvsbiter->end())		// 最后一条边
+			{
+				auto piter = citer; piter--;
+				if (citer->endIdx == piter->endIdx)
+				{
+					std::swap(citer->startIdx, citer->endIdx);
+					citer->startVertex.swap(citer->endVertex);
+				}
+			}
+			else  // 非最后一条边
+			{
+				auto niter = citer; niter++;
+				if (citer->startIdx == niter->startIdx || citer->startIdx == niter->endIdx)
+				{
+					std::swap(citer->startIdx, citer->endIdx);
+					citer->startVertex.swap(citer->endVertex);
+				}
+			}
+		}
+	}
+
+	// 遍历clVecsSwBoundaries，计算每条边界两个端点在水平面上的法向量
+	// 结合该端点在与其相连的下一条边界的法向量（依然在水平面上）
+	// 求出平均的法向量（正反两个方向），并沿着此二方向向外平移一定距离
+	// 判断其对应的地形高程是否小于depthShallowOcean
+	// 小则为深水区，否则为浅水区
+
+	// 海平面法向量
+	const Vector3 n(Vector3::UNIT_Y);
+
+	for (auto clvsbiter : clVecsSwBoundaries)
+	{
+		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
+		{
+			const Vector3 cnormal(citer->endVertex - citer->startVertex);	// 本段边界的方向
+			Vector3 npl = cnormal.crossProduct(n);		// 海平面上与本段边界方向垂直的方向
+			npl.normalise();
+			Vector3 nplc = -npl;	// 反方向
+
+			if (citer == clvsbiter->begin())	// 首条边界
+			{
+				Vector3 p = citer->startVertex + widthTrStrip * npl;
+				auto rs = _pointsIntersect(p + Vector3(0.f, 10000.f, 0.f));
+				if (rs.first && (p.y + 10000.f - rs.second < depthShallowOcean))
+					;
+			}
+			else if (citer == clvsbiter->end())	// 最后一条边界
+			{
+				auto niter = citer; niter++;
+			}
+			else
+			{
+				auto piter = citer; piter--;
+				
+			}
+		}
+	}
+
+#if 0
+	ManualObject* mobj = mSceneMgr->createManualObject("mobjlinedd");
+	mobj->begin("TestDemodd", RenderOperation::OT_LINE_LIST);
+	for (auto iter = clSwBoundaries.begin(); iter != clSwBoundaries.end(); iter++)
+	{
+		mobj->position((*iter)->startVertex);
+		mobj->colour(Ogre::ColourValue::Blue);
+		mobj->position((*iter)->endVertex);
+		mobj->colour(Ogre::ColourValue::Blue);
+	}
+	mobj->end();
+	SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObjdd");
+	nodeObj->attachObject(mobj);
+	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
+#endif
+}
+
+std::pair<bool, Ogre::Real> TerranLiquid::_pointsIntersect(const Ogre::Vector3& p)
+{
+	Ogre::Ray ray(p, Ogre::Vector3::NEGATIVE_UNIT_Y);
+	for (size_t j = 0; j < index_count; j += 3)
+	{
+		const auto& tp0 = vertices[indices[j]];
+		const auto& tp1 = vertices[indices[j + 1]];
+		const auto& tp2 = vertices[indices[j + 2]];
+
+		if (_isPointInTriangle2D(tp0, tp1, tp2, p))
+		{
+			auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
+			if (rs.first)
+				return rs;
+		}
+	}
+	return std::make_pair(false, 0.f);
+}
+
+#endif
+#endif
 
 void TerranLiquid::_generateOceanGrid(void)
 {
@@ -673,7 +748,6 @@ void TerranLiquid::_getMeshInfo(
 	for (unsigned short i = 0; i < countOfSubmeshes/*mesh->getNumSubMeshes()*/; ++i)
 	{
 		Ogre::SubMesh* submesh = mesh->getSubMesh(i);
-
 		Ogre::VertexData* vertex_data = submesh->useSharedVertices ? mesh->sharedVertexData : submesh->vertexData;
 
 		if ((!submesh->useSharedVertices) || (submesh->useSharedVertices && !added_shared))
@@ -695,11 +769,8 @@ void TerranLiquid::_getMeshInfo(
 				Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
 
 				Ogre::Vector3 tvex = ((orient * pt) + position) * scale;	// 此处orient position scale的顺序需注意
-				minx = std::min<float>(minx, tvex.x);
-				minz = std::min<float>(minz, tvex.z);
-				maxx = std::max<float>(maxx, tvex.x);
-				maxz = std::max<float>(maxz, tvex.z);
-
+				minx = std::min<float>(minx, tvex.x);  minz = std::min<float>(minz, tvex.z);
+				maxx = std::max<float>(maxx, tvex.x);  maxz = std::max<float>(maxz, tvex.z);
 				vertices[current_offset + j] = tvex;
 			}
 			vbuf->unlock();
@@ -713,7 +784,6 @@ void TerranLiquid::_getMeshInfo(
 		bool use32bitindexes = (ibuf->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
 		unsigned long* pLong = static_cast<unsigned long*>(ibuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
 		unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
-
 		size_t offset = (submesh->useSharedVertices) ? shared_offset : current_offset;
 		if (use32bitindexes)
 		{
