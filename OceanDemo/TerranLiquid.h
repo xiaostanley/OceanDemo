@@ -99,6 +99,8 @@ private:
 	// 浅水区域边界 指向clList中的元素
 	std::vector<bool> isInSwBoundaries;		// clList中的元素是否为浅水区域边界
 	std::vector<CoastLineList*> clVecsSwBoundaries;	// 有序浅水区域边界数据
+
+	std::vector<CoastLineList*> clVecsTrBoundaries;	// 有序过渡区域边界数据
 #endif // _TRANSITION_OCEAN_STRIP_
 #endif
 

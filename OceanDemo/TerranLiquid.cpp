@@ -393,7 +393,6 @@ void TerranLiquid::_getTransitionBoundary()
 {
 	// 调整clVecsSwBoundaries中所有区域边界线中每条边两个端点的顺序
 	// 使呈现（前后边的）链式连接关系
-
 	for (auto clvsbiter : clVecsSwBoundaries)
 	{
 		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
@@ -419,171 +418,130 @@ void TerranLiquid::_getTransitionBoundary()
 		}
 	}
 
-#if 1
-	// 先将边界信息和高度信息光栅化
+	////////////////////////////////////////////////////////////////////////////////////
 
+	// 以图像膨胀算法提取过渡区域边界
 	const size_t cols = static_cast<size_t>(mBox.getSize().x / (0.2f * density));
 	const size_t rows = static_cast<size_t>(mBox.getSize().z / (0.2f * density));
+	float ratioX = mBox.getSize().x / (float)(cols - 1);
+	float ratioZ = mBox.getSize().z / (float)(rows - 1);
+
+	std::vector<Vector3> clRasterPoints(rows * cols, Vector3::ZERO);
 	std::vector<std::vector<bool>> raster(rows, std::vector<bool>(cols, false));
+	const int radiusDl = static_cast<int>(widthTrStrip + 0.5f);	// 以一定半径进行膨胀
 
-	float ratioX = mBox.getSize().x / (float)(cols + 1);
-	float ratioZ = mBox.getSize().z / (float)(rows + 1);
+	// debug
+	std::vector<std::vector<bool>> rasterSW(rows, std::vector<bool>(cols, false));
 
-	for (size_t row = 0; row < rows; row++)
+#pragma omp parallel for
+	for (int row = 0; row < (int)rows; row++)
 	{
-		for (size_t col = 0; col < cols; col++)
+		for (int col = 0; col < (int)cols; col++)
 		{
-			Vector3 p(col * ratioX + mBox.getMinimum().x, heightSeaLevel, row * ratioZ + mBox.getMinimum().z);
-			auto rs = _pointsIntersect(p + Vector3(0.f, 10000.f, 0.f));
-			if (rs.first && (p.y + 10000.f - rs.second > depthShallowOcean))
-				raster[row][col] = true;
-		}
-	}
+			int index = row * cols + col;
+			clRasterPoints[index] = Vector3(col * ratioX + mBox.getMinimum().x, heightSeaLevel, row * ratioZ + mBox.getMinimum().z);
+			auto rs = _pointsIntersect(clRasterPoints[index] + Vector3(0.f, 10000.f, 0.f)
+				+ ((row == 0)? Vector3(0.f, 0.f, 0.5f) : Vector3::ZERO)
+				+ ((row == rows - 1)? Vector3(0.f, 0.f, -0.5f) : Vector3::ZERO)
+				+ ((col == 0)? Vector3(0.5f, 0.f, 0.f) : Vector3::ZERO)
+				+ ((col == cols - 1)? Vector3(-0.5f, 0.f, 0.f) : Vector3::ZERO)
+			);
 
-	// 数字图像处理-膨胀算法
-
-	const int radiusDl = static_cast<int>(widthTrStrip + 0.5f);
-	std::vector<std::vector<bool>> rasterDilated(raster);
-
-	for (size_t row = 0; row < rows; row++)
-	{
-		for (size_t col = 0; col < cols; col++)
-		{
-			if (raster[row][col])
+			if (rs.first && (clRasterPoints[index].y + 10000.f - rs.second > depthShallowOcean))
 			{
+				rasterSW[row][col] = true;	// debug
+
 				size_t colLf = 0, colRt = 0, rowTp = 0, rowBn = 0;
-				int offset = (int)col - radiusDl;
-				colLf = (offset < 0) ? 0 : (size_t)offset;
-				offset = (int)col + radiusDl;
-				colRt = (offset > cols - 1) ? (cols - 1) : (size_t)offset;
-				offset = (int)row - radiusDl;
-				rowTp = (offset < 0) ? 0 : (size_t)offset;
-				offset = (int)row + radiusDl;
-				rowBn = (offset > rows - 1) ? (rows - 1) : (size_t)offset;
+				int offset = col - radiusDl; colLf = (offset < 0) ? 0 : (size_t)offset;
+				offset = col + radiusDl;     colRt = (offset > (int)cols - 1) ? (cols - 1) : (size_t)offset;
+				offset = row - radiusDl;     rowTp = (offset < 0) ? 0 : (size_t)offset;
+				offset = row + radiusDl;     rowBn = (offset > (int)rows - 1) ? (rows - 1) : (size_t)offset;
 
 				for (size_t trow = rowTp; trow <= rowBn; trow++)
 					for (size_t tcol = colLf; tcol <= colRt; tcol++)
-					{
 						if (Math::Pow((float)trow - (float)row, 2.f) + Math::Pow((float)tcol - (float)col, 2.f) <= Math::Pow(radiusDl, 2.f))
-							rasterDilated[trow][tcol] = true;
-					}
+							raster[trow][tcol] = true;
 			}
 		}
 	}
 
 #if 1
-	std::vector<Ogre::Vector3> points;
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/clRasterPoints.ply";
+	Helper::exportPlyModel(path1, &clRasterPoints[0], clRasterPoints.size(), (int*)NULL, 0);
+
+	std::vector<Ogre::Vector3> pointsw;
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (rasterSW[row][col])
+				pointsw.push_back(clRasterPoints[row * cols + col]);
+	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/shallowarea.ply";
+	Helper::exportPlyModel(path3, &pointsw[0], pointsw.size(), (int*)NULL, 0);
+#endif
+
+	// 单像素膨胀
+	std::vector<std::vector<bool>> rasterDilated(raster);
+	// 角点
+	if (raster[0][0])				rasterDilated[0][1] = rasterDilated[1][0] = true;
+	if (raster[0][cols - 1])		rasterDilated[0][cols - 2] = rasterDilated[1][cols - 1] = true;
+	if (raster[rows - 1][0])		rasterDilated[rows - 2][0] = rasterDilated[rows - 1][1] = true;
+	if (raster[rows - 1][cols - 1]) rasterDilated[rows - 1][cols - 2] = rasterDilated[rows - 2][cols - 1] = true;
+	// 边界点
+	for (size_t row = 1; row < rows - 1; row++)
+	{
+		if (raster[row][0])			rasterDilated[row - 1][0] = rasterDilated[row][1] = rasterDilated[row + 1][0] = true;
+		if (raster[row][cols - 1])	rasterDilated[row - 1][cols - 1] = rasterDilated[row][cols - 2] = rasterDilated[row + 1][cols - 1] = true;
+	}
+	for (size_t col = 1; col < cols - 1; col++)
+	{
+		if (raster[0][col])			rasterDilated[0][col - 1] = rasterDilated[1][col] = rasterDilated[0][col + 1] = true;
+		if (raster[rows - 1][col])	rasterDilated[rows - 1][col - 1] = rasterDilated[rows - 2][col] = rasterDilated[rows - 1][col + 1] = true;
+	}
+	// 内部点
+#pragma omp parallel for
+	for (int row = 1; row < (int)(rows - 1); row++)
+		for (int col = 1; col < (int)(cols - 1); col++)
+			if (raster[row][col])
+				rasterDilated[row - 1][col] = rasterDilated[row][col - 1] = rasterDilated[row][col + 1] = rasterDilated[row + 1][col] = true;
+	// 过渡区域边界 = 单像素膨胀矩阵 - 半径膨胀矩阵
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (rasterDilated[row][col] && raster[row][col])
+				rasterDilated[row][col] = false;
+
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	// 形成过渡区域边界序列
+	std::vector<CoastLine> clTrBoundaries;
+	std::vector<Ogre::Vector3> clTrBdPoints;
+
 	for (size_t row = 0; row < rows; row++)
 	{
 		for (size_t col = 0; col < cols; col++)
 		{
-			if (/*raster*/rasterDilated[row][col])
-				points.push_back(Ogre::Vector3(col * ratioX + mBox.getMinimum().x,
-					heightSeaLevel, row * ratioZ + mBox.getMinimum().z));
+
 		}
 	}
+
+#if 1
+	std::vector<Ogre::Vector3> pointsraster;
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (raster[row][col])
+				pointsraster.push_back(clRasterPoints[row * cols + col]);
+	std::vector<Ogre::Vector3> pointsrasterDl;
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (rasterDilated[row][col])
+				pointsrasterDl.push_back(clRasterPoints[row * cols + col]);
 #endif
 
 #if 1
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/testgrid.ply";
-	Helper::exportPlyModel(path, &points[0], points.size(), (int*)NULL, 0);
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/raster.ply";
+	Helper::exportPlyModel(path, &pointsraster[0], pointsraster.size(), (int*)NULL, 0);
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterDilated.ply";
+	Helper::exportPlyModel(path2, &pointsrasterDl[0], pointsrasterDl.size(), (int*)NULL, 0);
 	//Helper::exportPlyModel(path, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
 	//Helper::exportPlyModelWithEdges(path, &clSwBdPoints[0], clSwBdPoints.size(), &clSwBdLines[0], clSwBdLines.size() / 2);
-#endif
-#else
-	// 遍历clVecsSwBoundaries，计算每条边界两个端点在水平面上的法向量
-	// 结合该端点在与其相连的下一条边界的法向量（依然在水平面上）
-	// 求出平均的法向量（正反两个方向），并沿着此二方向向外平移一定距离
-	// 判断其对应的地形高程是否小于depthShallowOcean
-	// 小则为深水区，否则为浅水区
-
-	// 海平面法向量
-	const Vector3 n(Vector3::UNIT_Y);
-
-	// debug
-	std::vector<Ogre::Vector3> clSwBdPoints;
-	std::vector<int> clSwBdLines;
-
-	for (auto clvsbiter : clVecsSwBoundaries)
-	{
-		for (auto citer = clvsbiter->begin(); citer != clvsbiter->end(); citer++)
-		{
-			Vector3 cnormal((citer->startVertex - citer->endVertex).normalisedCopy());	// 本段边界的方向
-			Vector3 npl[2];
-			npl[0] = (cnormal.crossProduct(n)).normalisedCopy();		// 海平面上与本段边界方向垂直的方向
-			npl[1] = -npl[0];	// 反方向
-
-			if (citer == clvsbiter->begin())	// 首条边需计算startVertex的对应点
-			{
-				//if (!_addPointToGrid(npl[0], citer->startVertex, clPoints))	// 当前边的startVertex端点
-				//	_addPointToGrid(npl[1], citer->startVertex, clPoints);
-				if (!_addPointToGrid(npl[0], citer->startVertex, clSwBdPoints))
-				{
-					if (!_addPointToGrid(npl[1], citer->startVertex, clSwBdPoints))
-					{
-						if (citer->startVertex.x == mBox.getMaximum().x || citer->startVertex.x == mBox.getMinimum().x)
-						{
-							Vector3 nplt[2];  nplt[0] = Vector3::UNIT_Z;  nplt[1] = Vector3::NEGATIVE_UNIT_Z;
-							if (!_addPointToGrid(nplt[0], citer->startVertex, clSwBdPoints))
-								_addPointToGrid(nplt[1], citer->startVertex, clSwBdPoints);
-						}
-						else if (citer->startVertex.z == mBox.getMaximum().z || citer->startVertex.z == mBox.getMinimum().z)
-						{
-							Vector3 nplt[2];  nplt[0] = Vector3::UNIT_X;  nplt[1] = Vector3::NEGATIVE_UNIT_X;
-							if (!_addPointToGrid(nplt[0], citer->startVertex, clSwBdPoints))
-								_addPointToGrid(nplt[1], citer->startVertex, clSwBdPoints);
-						}
-					}
-				}
-			}
-
-			// 剩下的边只计算endVertex的对应点
-			if (((++citer)--) == clvsbiter->end())	// 最后一条边
-			{
-				//if (!_addPointToGrid(npl[0], citer->endVertex, clPoints))
-				//	_addPointToGrid(npl[1], citer->endVertex, clPoints);
-				if (!_addPointToGrid(npl[0], citer->endVertex, clSwBdPoints))
-				{
-					if (_addPointToGrid(npl[1], citer->endVertex, clSwBdPoints))
-					{
-						clSwBdLines.push_back(clSwBdPoints.size() - 2);
-						clSwBdLines.push_back(clSwBdPoints.size() - 1);
-					}
-				}
-				else
-				{
-					clSwBdLines.push_back(clSwBdPoints.size() - 2);
-					clSwBdLines.push_back(clSwBdPoints.size() - 1);
-				}
-			}
-			else // 剩余的边 
-			{
-				auto niter = citer; niter++;	// 下一条边
-				Vector3 nnormal = (niter->endVertex - niter->startVertex).normalisedCopy();	// 注意计算方式与cnormal相反
-				if (!nnormal.positionEquals(-cnormal))	// n与c不共线
-				{
-					// 计算c边与n边的角平分线方向
-					Vector3 angleBisector((nnormal.midPoint(cnormal)).normalisedCopy());
-
-					//if (!_addPointToGrid(angleBisector, citer->endVertex, clPoints))
-					//	_addPointToGrid(-angleBisector, citer->endVertex, clPoints);
-					if (!_addPointToGrid(angleBisector, citer->endVertex, clSwBdPoints))
-					{
-						if (_addPointToGrid(-angleBisector, citer->endVertex, clSwBdPoints))
-						{
-							clSwBdLines.push_back(clSwBdPoints.size() - 2);
-							clSwBdLines.push_back(clSwBdPoints.size() - 1);
-						}
-					}
-					else
-					{
-						clSwBdLines.push_back(clSwBdPoints.size() - 2);
-						clSwBdLines.push_back(clSwBdPoints.size() - 1);
-					}
-				}
-			}
-		}
-	}
 #endif
 
 #if 0
