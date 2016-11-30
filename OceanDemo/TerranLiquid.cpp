@@ -389,6 +389,52 @@ void TerranLiquid::_collectCoastLines(void)
 
 #ifdef _SHALLOW_OCEAN_STRIP_
 #ifdef _TRANSITION_OCEAN_STRIP_ 
+
+//static std::vector<std::vector<bool>> rasterTr(0);
+static std::vector<std::vector<bool>> raster(0);
+static std::vector<Ogre::Vector3> clSwBdPoints(0);
+static int radiusDl = 0;
+
+void TerranLiquid::_extractBoundaries(const BvMat& raster, BvMat& rasterBd)
+{
+	const size_t rows = raster.size();
+	const size_t cols = raster[0].size();
+
+	// 单像素腐蚀
+	rasterBd.resize(rows, std::vector<bool>(cols, false));
+	std::copy(raster.begin(), raster.end(), rasterBd.begin());
+	
+	// 角点
+	if (!raster[0][0])				 rasterBd[0][1] = rasterBd[1][0] = false;
+	if (!raster[0][cols - 1])		 rasterBd[0][cols - 2] = rasterBd[1][cols - 1] = false;
+	if (!raster[rows - 1][0])		 rasterBd[rows - 2][0] = rasterBd[rows - 1][1] = false;
+	if (!raster[rows - 1][cols - 1]) rasterBd[rows - 1][cols - 2] = rasterBd[rows - 2][cols - 1] = false;
+	// 边界点
+	for (size_t row = 1; row < rows - 1; row++)
+	{
+		if (!raster[row][0])		rasterBd[row - 1][0] = rasterBd[row][1] = rasterBd[row + 1][0] = false;
+		if (!raster[row][cols - 1])	rasterBd[row - 1][cols - 1] = rasterBd[row][cols - 2] = rasterBd[row + 1][cols - 1] = false;
+	}
+	for (size_t col = 1; col < cols - 1; col++)
+	{
+		if (!raster[0][col])		rasterBd[0][col - 1] = rasterBd[1][col] = rasterBd[0][col + 1] = false;
+		if (!raster[rows - 1][col])	rasterBd[rows - 1][col - 1] = rasterBd[rows - 2][col] = rasterBd[rows - 1][col + 1] = false;
+	}
+	// 内部点
+#pragma omp parallel for
+	for (int row = 1; row < (int)(rows - 1); row++)
+		for (int col = 1; col < (int)(cols - 1); col++)
+			if (!raster[row][col])
+				rasterBd[row - 1][col] = rasterBd[row][col - 1] = rasterBd[row][col + 1] = rasterBd[row + 1][col] = false;
+	// 边界 = 原始栅格 - 单像素腐蚀栅格
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (!rasterBd[row][col] && raster[row][col])
+				rasterBd[row][col] = true;
+			else if (rasterBd[row][col] && raster[row][col])
+				rasterBd[row][col] = false;
+}
+
 void TerranLiquid::_getTransitionBoundary()
 {
 	// 调整clVecsSwBoundaries中所有区域边界线中每条边两个端点的顺序
@@ -427,10 +473,12 @@ void TerranLiquid::_getTransitionBoundary()
 	float ratioZ = mBox.getSize().z / (float)(rows - 1);
 
 	std::vector<Vector3> clRasterPoints(rows * cols, Vector3::ZERO);
-	std::vector<std::vector<bool>> raster(rows, std::vector<bool>(cols, false));
-	const int radiusDl = static_cast<int>(widthTrStrip + 0.5f);	// 以一定半径进行膨胀
+	//std::vector<std::vector<bool>> raster(rows, std::vector<bool>(cols, false));
+	raster.resize(rows, std::vector<bool>(cols, false));
 
-	// debug
+	radiusDl = static_cast<int>(widthTrStrip + 0.5f);	// 以一定半径进行膨胀
+
+	// 浅水区域范围
 	std::vector<std::vector<bool>> rasterSW(rows, std::vector<bool>(cols, false));
 
 #pragma omp parallel for
@@ -466,98 +514,54 @@ void TerranLiquid::_getTransitionBoundary()
 	}
 
 #if 1
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/clRasterPoints.ply";
-	Helper::exportPlyModel(path1, &clRasterPoints[0], clRasterPoints.size(), (int*)NULL, 0);
-
+	std::vector<Ogre::Vector3> pointsraster;
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (raster[row][col])
+				pointsraster.push_back(clRasterPoints[row * cols + col]); 
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/rasterTrSw.ply";
+	Helper::exportPlyModel(path, &pointsraster[0], pointsraster.size(), (int*)NULL, 0);
 	std::vector<Ogre::Vector3> pointsw;
 	for (size_t row = 0; row < rows; row++)
 		for (size_t col = 0; col < cols; col++)
 			if (rasterSW[row][col])
 				pointsw.push_back(clRasterPoints[row * cols + col]);
-	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/shallowarea.ply";
+	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterSw.ply";
 	Helper::exportPlyModel(path3, &pointsw[0], pointsw.size(), (int*)NULL, 0);
 #endif
 
-	// 单像素膨胀
-	std::vector<std::vector<bool>> rasterDilated(raster);
-	// 角点
-	if (raster[0][0])				rasterDilated[0][1] = rasterDilated[1][0] = true;
-	if (raster[0][cols - 1])		rasterDilated[0][cols - 2] = rasterDilated[1][cols - 1] = true;
-	if (raster[rows - 1][0])		rasterDilated[rows - 2][0] = rasterDilated[rows - 1][1] = true;
-	if (raster[rows - 1][cols - 1]) rasterDilated[rows - 1][cols - 2] = rasterDilated[rows - 2][cols - 1] = true;
-	// 边界点
-	for (size_t row = 1; row < rows - 1; row++)
-	{
-		if (raster[row][0])			rasterDilated[row - 1][0] = rasterDilated[row][1] = rasterDilated[row + 1][0] = true;
-		if (raster[row][cols - 1])	rasterDilated[row - 1][cols - 1] = rasterDilated[row][cols - 2] = rasterDilated[row + 1][cols - 1] = true;
-	}
-	for (size_t col = 1; col < cols - 1; col++)
-	{
-		if (raster[0][col])			rasterDilated[0][col - 1] = rasterDilated[1][col] = rasterDilated[0][col + 1] = true;
-		if (raster[rows - 1][col])	rasterDilated[rows - 1][col - 1] = rasterDilated[rows - 2][col] = rasterDilated[rows - 1][col + 1] = true;
-	}
-	// 内部点
-#pragma omp parallel for
-	for (int row = 1; row < (int)(rows - 1); row++)
-		for (int col = 1; col < (int)(cols - 1); col++)
-			if (raster[row][col])
-				rasterDilated[row - 1][col] = rasterDilated[row][col - 1] = rasterDilated[row][col + 1] = rasterDilated[row + 1][col] = true;
-	// 过渡区域边界 = 单像素膨胀矩阵 - 半径膨胀矩阵
-	for (size_t row = 0; row < rows; row++)
-		for (size_t col = 0; col < cols; col++)
-			if (rasterDilated[row][col] && raster[row][col])
-				rasterDilated[row][col] = false;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// 形成过渡区域边界序列
-	std::vector<CoastLine> clTrBoundaries;
-	std::vector<Ogre::Vector3> clTrBdPoints;
+	// 提取过渡区域边界
+	std::vector<std::vector<bool>> rasterBd;
+	_extractBoundaries(raster, rasterBd);
 
 	for (size_t row = 0; row < rows; row++)
-	{
 		for (size_t col = 0; col < cols; col++)
-		{
-
-		}
-	}
+			if (rasterBd[row][col])
+				clPoints.push_back(clRasterPoints[row * cols + col]);
 
 #if 1
-	std::vector<Ogre::Vector3> pointsraster;
-	for (size_t row = 0; row < rows; row++)
-		for (size_t col = 0; col < cols; col++)
-			if (raster[row][col])
-				pointsraster.push_back(clRasterPoints[row * cols + col]);
 	std::vector<Ogre::Vector3> pointsrasterDl;
 	for (size_t row = 0; row < rows; row++)
 		for (size_t col = 0; col < cols; col++)
-			if (rasterDilated[row][col])
+			if (rasterBd[row][col])
 				pointsrasterDl.push_back(clRasterPoints[row * cols + col]);
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterTrBd.ply";
+	Helper::exportPlyModel(path2, &pointsrasterDl[0], pointsrasterDl.size(), (int*)NULL, 0);
 #endif
+
+	// 提取浅水区域边界
+	raster.swap(BvMat());
+	raster.clear();
+	_extractBoundaries(rasterSW, raster);
+
+	for (size_t row = 0; row < rows; row++)
+		for (size_t col = 0; col < cols; col++)
+			if (raster[row][col])
+				clSwBdPoints.push_back(clRasterPoints[row * cols + col]);
 
 #if 1
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/raster.ply";
-	Helper::exportPlyModel(path, &pointsraster[0], pointsraster.size(), (int*)NULL, 0);
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterDilated.ply";
-	Helper::exportPlyModel(path2, &pointsrasterDl[0], pointsrasterDl.size(), (int*)NULL, 0);
-	//Helper::exportPlyModel(path, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
-	//Helper::exportPlyModelWithEdges(path, &clSwBdPoints[0], clSwBdPoints.size(), &clSwBdLines[0], clSwBdLines.size() / 2);
-#endif
-
-#if 0
-	ManualObject* mobj = mSceneMgr->createManualObject("mobjlinedd");
-	mobj->begin("TestDemodd", RenderOperation::OT_LINE_LIST);
-	for (auto iter = clSwBoundaries.begin(); iter != clSwBoundaries.end(); iter++)
-	{
-		mobj->position((*iter)->startVertex);
-		mobj->colour(Ogre::ColourValue::Blue);
-		mobj->position((*iter)->endVertex);
-		mobj->colour(Ogre::ColourValue::Blue);
-	}
-	mobj->end();
-	SceneNode* nodeObj = mSceneMgr->createSceneNode("nodeObjdd");
-	nodeObj->attachObject(mobj);
-	mSceneMgr->getRootSceneNode()->addChild(nodeObj);
+	const char* path233 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterSwBd.ply";
+	Helper::exportPlyModel(path233, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
 #endif
 }
 
@@ -609,7 +613,6 @@ void TerranLiquid::_generateOceanGrid(void)
 	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, minz));
 	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, maxz));
 	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, maxz));
-
 	// 边界点
 	for (float step = minx + density; step < maxx; step += density)
 	{
@@ -621,15 +624,10 @@ void TerranLiquid::_generateOceanGrid(void)
 		clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, step));
 		clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, step));
 	}
-
 	// 内部点
 	for (float xstep = minx + density; xstep < maxx; xstep += density)
-	{
 		for (float ystep = minz + density; ystep < maxz; ystep += density)
-		{
 			clPoints.push_back(Ogre::Vector3(xstep, heightSeaLevel, ystep));
-		}
-	}
 
 	GeoPoint3D* verticesPtr = new GeoPoint3D[clPoints.size()];
 	for (size_t i = 0; i < clPoints.size(); i++)
@@ -662,19 +660,28 @@ void TerranLiquid::_generateOceanGrid(void)
 	delete[] verticesPtr;
 	delete[] constraints;
 
-#if 0
+#if 1
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
 	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
-	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), faces, countFaces);
+	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), clFaces, countFaces);
 #endif
 
 	// 遍历faces中所有面片
 	// 计算每个面片中心点在地形mesh中的对应高度
 	// 判断当前面片是否应删除
 
-	std::vector<bool> isShallowMesh(countFaces, false);
+	std::vector<bool> isShallowMesh(countFaces, false);		// 面片是否应保留在浅水网格中
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+	std::vector<bool> isTransitionMesh(countFaces, false);	// 面片是否应保留在过渡区域网格中
 
-	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
+	const size_t rows = raster.size();
+	const size_t cols = raster[0].size();
+#endif
+#endif
+
+#pragma omp parallel for
+	for (int i = 0; i < countFaces; i++)
 	{
 		int tidx = 3 * i;
 		const auto& p0 = clPoints[clFaces[tidx]];
@@ -687,23 +694,49 @@ void TerranLiquid::_generateOceanGrid(void)
 		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
 		for (size_t j = 0; j < index_count; j += 3)
 		{
-			const auto& tp0 = vertices[indices[j]];
-			const auto& tp1 = vertices[indices[j + 1]];
-			const auto& tp2 = vertices[indices[j + 2]];
+			Ogre::Vector3 tp[3];
+			tp[0] = vertices[indices[j]];
+			tp[1] = vertices[indices[j + 1]];
+			tp[2] = vertices[indices[j + 2]];
 
-			if (_isPointInTriangle2D(tp0, tp1, tp2, cp))
+			if (_isPointInTriangle2D(tp[0], tp[1], tp[2], cp))
 			{
-				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
+				auto rs = ray.intersects(Ogre::Plane(tp[0], tp[1], tp[2]));
 				if (rs.first)
 				{
 					float th = cp.y - rs.second;
-					if (
-						th < heightSeaLevel			// 当前海面面片重心高度高于其对应的垂直地形点高程
+					if (th < heightSeaLevel)	// 当前海面面片重心高度高于其对应的垂直地形点高程
 #ifdef _SHALLOW_OCEAN_STRIP_
-						&& th > depthShallowOcean
+						if (th > depthShallowOcean)
+							isShallowMesh[i] = true;
+#ifdef _TRANSITION_OCEAN_STRIP_
+						else   // 判断是否处于过渡区域
+						{
+							// 面片各个顶点与浅水边界点的最近距离是否大于radiusDl
+							bool isAllWithin = true;
+
+							for (size_t k = 0; k < 3; k++)
+							{
+								float mindist = 100000000.f;
+								for (auto iter = clSwBdPoints.begin(); iter != clSwBdPoints.end(); iter++)
+								{
+									float dist = Ogre::Math::Sqrt(Ogre::Math::Pow(tp[k].x - iter->x, 2.f) + Ogre::Math::Pow(tp[k].z - iter->z, 2.f));
+									mindist = (dist < mindist) ? dist : mindist;
+								}
+								if (mindist > radiusDl)
+								{
+									isAllWithin = false;
+									break;
+								}
+							}
+
+							if (isAllWithin)
+								isTransitionMesh[i] = true;
+						}
 #endif
-						)
+#else
 						isShallowMesh[i] = true;
+#endif
 					break;
 				}
 			}
@@ -719,6 +752,22 @@ void TerranLiquid::_generateOceanGrid(void)
 
 	// 删除无效点和无效面片
 	_removeInvalidData(isShallowMesh, clFaces, countFaces);
+#if 1
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_simp.ply";
+	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
+	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
+#endif
+
+#ifdef _SHALLOW_OCEAN_STRIP_
+#ifdef _TRANSITION_OCEAN_STRIP_ 
+	_removeInvalidData(isTransitionMesh, clFaces, countFaces);
+#endif
+#endif
+#if 1
+	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_tr.ply";
+	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
+	Helper::exportPlyModel(path3, vertices, vertex_count, indices, index_count / 3);
+#endif
 
 	gpuDT->releaseMemory();
 }
@@ -786,12 +835,6 @@ void TerranLiquid::_removeInvalidData(
 	std::copy(clFacesLeft.begin(), clFacesLeft.end(), indices);
 	vertex_count = clPointsLeft.size();
 	index_count = clFacesLeft.size();
-
-#if 1
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_simp.ply";
-	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
-	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
-#endif
 }
 
 void TerranLiquid::_getMeshInfo(

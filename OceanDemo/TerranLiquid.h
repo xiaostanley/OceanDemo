@@ -151,6 +151,11 @@ private:
 
 	// 射线检测
 	std::pair<bool, Ogre::Real> _pointsIntersect(const Ogre::Vector3& p);
+
+	typedef std::vector<std::vector<bool>> BvMat;
+
+	// 腐蚀算法提取边界点
+	void _extractBoundaries(const BvMat& raster, BvMat& rasterBd);
 #endif
 #endif
 
