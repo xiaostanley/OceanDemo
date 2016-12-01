@@ -677,6 +677,8 @@ void TerranLiquid::_generateOceanGrid(void)
 
 	const size_t rows = raster.size();
 	const size_t cols = raster[0].size();
+	float ratioX = mBox.getSize().x / (float)(cols - 1);
+	float ratioZ = mBox.getSize().z / (float)(rows - 1);
 #endif
 #endif
 
@@ -684,11 +686,12 @@ void TerranLiquid::_generateOceanGrid(void)
 	for (int i = 0; i < countFaces; i++)
 	{
 		int tidx = 3 * i;
-		const auto& p0 = clPoints[clFaces[tidx]];
-		const auto& p1 = clPoints[clFaces[tidx + 1]];
-		const auto& p2 = clPoints[clFaces[tidx + 2]];
+		Ogre::Vector3 p[3];
+		p[0] = clPoints[clFaces[tidx]];
+		p[1] = clPoints[clFaces[tidx + 1]];
+		p[2] = clPoints[clFaces[tidx + 2]];
 
-		Ogre::Vector3 cp = (p0 + p1 + p2) / 3.f;
+		Ogre::Vector3 cp = (p[0] + p[1] + p[2]) / 3.f;
 		cp.y = 10000.f;
 
 		Ogre::Ray ray(cp, Ogre::Vector3::NEGATIVE_UNIT_Y);
@@ -712,24 +715,21 @@ void TerranLiquid::_generateOceanGrid(void)
 #ifdef _TRANSITION_OCEAN_STRIP_
 						else   // 判断是否处于过渡区域
 						{
-							// 面片各个顶点与浅水边界点的最近距离是否大于radiusDl
 							bool isAllWithin = true;
-
 							for (size_t k = 0; k < 3; k++)
 							{
 								float mindist = 100000000.f;
 								for (auto iter = clSwBdPoints.begin(); iter != clSwBdPoints.end(); iter++)
 								{
-									float dist = Ogre::Math::Sqrt(Ogre::Math::Pow(tp[k].x - iter->x, 2.f) + Ogre::Math::Pow(tp[k].z - iter->z, 2.f));
+									float dist = Ogre::Math::Sqrt(Ogre::Math::Pow(p[k].x - iter->x, 2.f) + Ogre::Math::Pow(p[k].z - iter->z, 2.f));
 									mindist = (dist < mindist) ? dist : mindist;
 								}
-								if (mindist > radiusDl)
+								if (mindist > radiusDl * ratioX)
 								{
 									isAllWithin = false;
 									break;
 								}
 							}
-
 							if (isAllWithin)
 								isTransitionMesh[i] = true;
 						}
@@ -743,12 +743,6 @@ void TerranLiquid::_generateOceanGrid(void)
 		}
 	}
 
-#if 0
-	// 	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp.ply";
-	// 	Helper::exportPlyModel(path2, vertices, vertex_count, indices, index_count / 3);
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/cp1.ply";
-	Helper::exportPlyModel(path2, &cpp[0], cpp.size(), (int*)NULL, 0);
-#endif
 
 	// 删除无效点和无效面片
 	_removeInvalidData(isShallowMesh, clFaces, countFaces);
