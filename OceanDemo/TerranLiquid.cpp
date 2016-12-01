@@ -12,6 +12,8 @@ TerranLiquid::TerranLiquid()
 	transPos(Ogre::Vector3::ZERO),
 	scale(Ogre::Vector3::ZERO),
 	heightSeaLevel(0.f),
+	waveAmplitude(0.f),
+	heightMax(0.f),
 	vertex_count(0),
 	index_count(0),
 	vertices(NULL),
@@ -120,7 +122,7 @@ void TerranLiquid::initialize(void)
 void TerranLiquid::_getInitialCoastLines(void)
 {
 	// 海平面参数
-	Vector3 p0(10.f, heightSeaLevel, 10.f);
+	Vector3 p0(10.f, heightMax, 10.f);
 	Vector3 n = Vector3::UNIT_Y;
 	float dp = p0.dotProduct(n);
 
@@ -137,7 +139,7 @@ void TerranLiquid::_getInitialCoastLines(void)
 		p[1] = vertices[indices[i + 1]];
 		p[2] = vertices[indices[i + 2]];
 
-		if (_isIntersected(p, heightSeaLevel))
+		if (_isIntersected(p, heightMax))
 		{
 			// 遍历三条边 查找与海平面交点
 			// 存储两个交点
@@ -146,7 +148,7 @@ void TerranLiquid::_getInitialCoastLines(void)
 			{
 				const Vector3& tp0 = p[j];  const Vector3& tp1 = p[(j + 1) % 3];
 				Vector3 d(tp1 - tp0);
-				if ((tp0.y - heightSeaLevel) * (tp1.y - heightSeaLevel) < 0.f)	// 存在交点
+				if ((tp0.y - heightMax) * (tp1.y - heightMax) < 0.f)	// 存在交点
 					pi.push_back(tp0 + (dp - tp0.dotProduct(n)) / d.dotProduct(n) * d);
 			}
 			clList->push_back(TerranLiquid::CoastLine(-1, -1, pi[0], pi[1]));
@@ -172,7 +174,7 @@ void TerranLiquid::_getInitialCoastLines(void)
 				if ((tp0.y - depthShallowOcean) * (tp1.y - depthShallowOcean) < 0.f)	// 存在交点
 					pi.push_back(tp0 + (dpsw - tp0.dotProduct(n)) / d.dotProduct(n) * d);
 			}
-			pi[0].y = pi[1].y = heightSeaLevel;
+			pi[0].y = pi[1].y = heightMax;
 			clList->push_back(TerranLiquid::CoastLine(-1, -1, pi[0], pi[1]));
 
 #ifdef _TRANSITION_OCEAN_STRIP_
@@ -392,7 +394,9 @@ void TerranLiquid::_collectCoastLines(void)
 
 //static std::vector<std::vector<bool>> rasterTr(0);
 static std::vector<std::vector<bool>> raster(0);
-static std::vector<Ogre::Vector3> clSwBdPoints(0);
+static std::vector<Ogre::Vector3> clSwBdPoints(0);		// 浅水区域边界点
+static std::vector<Ogre::Vector3> clTrBdPoints(0);		// 过渡区域边界点
+
 static int radiusDl = 0;
 
 void TerranLiquid::_extractBoundaries(const BvMat& raster, BvMat& rasterBd)
@@ -487,7 +491,7 @@ void TerranLiquid::_getTransitionBoundary()
 		for (int col = 0; col < (int)cols; col++)
 		{
 			int index = row * cols + col;
-			clRasterPoints[index] = Vector3(col * ratioX + mBox.getMinimum().x, heightSeaLevel, row * ratioZ + mBox.getMinimum().z);
+			clRasterPoints[index] = Vector3(col * ratioX + mBox.getMinimum().x, heightMax, row * ratioZ + mBox.getMinimum().z);
 			auto rs = _pointsIntersect(clRasterPoints[index] + Vector3(0.f, 10000.f, 0.f)
 				+ ((row == 0)? Vector3(0.f, 0.f, 0.5f) : Vector3::ZERO)
 				+ ((row == rows - 1)? Vector3(0.f, 0.f, -0.5f) : Vector3::ZERO)
@@ -537,7 +541,10 @@ void TerranLiquid::_getTransitionBoundary()
 	for (size_t row = 0; row < rows; row++)
 		for (size_t col = 0; col < cols; col++)
 			if (rasterBd[row][col])
+			{
 				clPoints.push_back(clRasterPoints[row * cols + col]);
+				clTrBdPoints.push_back(clPoints.back());
+			}
 
 #if 1
 	std::vector<Ogre::Vector3> pointsrasterDl;
@@ -673,6 +680,11 @@ void TerranLiquid::_removeInvalidData(
 	Helper::exportPlyModel(path3, &clPointsLeft[0], clPointsLeft.size(), &clFacesDeepLeft[0], clFacesDeepLeft.size() / 3);
 #endif
 
+	// 位于过渡区域的点
+	std::vector<bool> isTransitionPoints(vertex_count, false);
+	for (auto iter : clFacesTransitionLeft)
+		isTransitionPoints[iter] = true;
+
 	/////////////////////////////////////////////////////////////////////////////
 
 	Ogre::String matNameSw = "OceanShallow";
@@ -688,7 +700,7 @@ void TerranLiquid::_removeInvalidData(
 	for (size_t i = 0; i < vertex_count; i++)
 	{
 		coordinates[3 * i] = vertices[i].x;
-		coordinates[3 * i + 1] = vertices[i].y;
+		coordinates[3 * i + 1] = heightSeaLevel - 5.f;	//vertices[i].y;
 		coordinates[3 * i + 2] = vertices[i].z;
 
 		normals[3 * i] = normals[3 * i + 2] = 0.f;
@@ -702,7 +714,34 @@ void TerranLiquid::_removeInvalidData(
 	float* tangents = new float[3 * vertex_count];
 	for (size_t i = 0; i < vertex_count; i++)
 	{
-		tangents[3 * i] = tangents[3 * i + 1] = tangents[3 * i + 2] = 1.f;
+		tangents[3 * i + 1] = tangents[3 * i + 2] = 0.f;
+		if (isTransitionPoints[i])
+		{
+			const auto& p = vertices[i];
+
+			// 计算此点与浅水区域边界点以及与过渡区域边界点的最短距离
+			float distToSwBd = 10000000.f;
+			float distToTrBd = 10000000.f;
+			for (auto iter = clSwBdPoints.begin(); iter != clSwBdPoints.end(); iter++)
+			{
+				float dist = Ogre::Math::Sqrt(Ogre::Math::Pow(p.x - iter->x, 2.f) + Ogre::Math::Pow(p.z - iter->z, 2.f));
+				distToSwBd = (dist < distToSwBd) ? dist : distToSwBd;
+			}
+			for (auto iter = clTrBdPoints.begin(); iter != clTrBdPoints.end(); iter++)
+			{
+				float dist = Ogre::Math::Sqrt(Ogre::Math::Pow(p.x - iter->x, 2.f) + Ogre::Math::Pow(p.z - iter->z, 2.f));
+				distToTrBd = (dist < distToTrBd) ? dist : distToTrBd;
+			}
+
+			//if (distToSwBd <= eps)
+			//	tangents[3 * i] = 1.f;
+			//else if (distToTrBd <= eps)
+			//	tangents[3 * i] = 0.f;
+			//else
+				tangents[3 * i] = distToSwBd / (distToSwBd + distToTrBd);
+		}
+		else
+			tangents[3 * i] = 0.f;
 	}
 
 	// 生成Ogre Mesh
@@ -842,25 +881,25 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 建立离散点集 作为海面网格点集
 
 	// 四个角点
-	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, minz));
-	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, minz));
-	clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, maxz));
-	clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, maxz));
+	clPoints.push_back(Ogre::Vector3(minx, heightMax, minz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightMax, minz));
+	clPoints.push_back(Ogre::Vector3(minx, heightMax, maxz));
+	clPoints.push_back(Ogre::Vector3(maxx, heightMax, maxz));
 	// 边界点
 	for (float step = minx + density; step < maxx; step += density)
 	{
-		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, minz));
-		clPoints.push_back(Ogre::Vector3(step, heightSeaLevel, maxz));
+		clPoints.push_back(Ogre::Vector3(step, heightMax, minz));
+		clPoints.push_back(Ogre::Vector3(step, heightMax, maxz));
 	}
 	for (float step = minz + density; step < maxz; step += density)
 	{
-		clPoints.push_back(Ogre::Vector3(minx, heightSeaLevel, step));
-		clPoints.push_back(Ogre::Vector3(maxx, heightSeaLevel, step));
+		clPoints.push_back(Ogre::Vector3(minx, heightMax, step));
+		clPoints.push_back(Ogre::Vector3(maxx, heightMax, step));
 	}
 	// 内部点
 	for (float xstep = minx + density; xstep < maxx; xstep += density)
 		for (float ystep = minz + density; ystep < maxz; ystep += density)
-			clPoints.push_back(Ogre::Vector3(xstep, heightSeaLevel, ystep));
+			clPoints.push_back(Ogre::Vector3(xstep, heightMax, ystep));
 
 	GeoPoint3D* verticesPtr = new GeoPoint3D[clPoints.size()];
 	for (size_t i = 0; i < clPoints.size(); i++)
@@ -896,12 +935,6 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 调整面片顺序
 	for (int i = 0; i < countFaces; i++)
 		std::swap(clFaces[3 * i + 1], clFaces[3 * i + 2]);
-
-#if 1
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
-	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
-	Helper::exportPlyModel(path, &clPoints[0], clPoints.size(), clFaces, countFaces);
-#endif
 
 	// 遍历faces中所有面片
 	// 计算每个面片中心点在地形mesh中的对应高度
@@ -946,12 +979,12 @@ void TerranLiquid::_generateOceanGrid(void)
 				auto rs = ray.intersects(Ogre::Plane(tp[0], tp[1], tp[2]));
 				if (rs.first)
 				{
-					float th = cp.y - rs.second;
-					if (th < heightSeaLevel)	// 当前海面面片重心高度高于其对应的垂直地形点高程
+					float theight = cp.y - rs.second;
+					if (theight < heightMax)	// 当前海面面片重心高度高于其对应的垂直地形点高程
 					{
 						isOceanMesh[i] = true;
 #ifdef _SHALLOW_OCEAN_STRIP_
-						if (th > depthShallowOcean)
+						if (theight > depthShallowOcean)
 							isShallowMesh[i] = true;
 #ifdef _TRANSITION_OCEAN_STRIP_
 						else   // 判断是否处于过渡区域
@@ -1173,8 +1206,7 @@ void TerranLiquid::_getMeshInfo(
 		current_offset = next_offset;
 	}
 
-	float ampitude = 10.f;
-	mBox = Ogre::AxisAlignedBox(minx, heightSeaLevel - ampitude, minz, maxx, heightSeaLevel + ampitude, maxz);
+	mBox = Ogre::AxisAlignedBox(minx, heightSeaLevel - waveAmplitude, minz, maxx, heightSeaLevel + waveAmplitude, maxz);
 
 #if 0
 	// debug
@@ -1192,9 +1224,11 @@ void TerranLiquid::_getMeshInfo(
 #endif
 }
 
-void TerranLiquid::setHeight(float heightSeaLevel)
+void TerranLiquid::setHeight(float heightSeaLevel, float waveAmplitude)
 {
 	this->heightSeaLevel = heightSeaLevel;
+	this->waveAmplitude = waveAmplitude;
+	heightMax = this->heightSeaLevel + this->waveAmplitude;
 }
 
 void TerranLiquid::setGridDensity(float density)
@@ -1325,7 +1359,7 @@ void TerranLiquid::_getDepthData(void)
 				auto rs = ray.intersects(Ogre::Plane(tp0, tp1, tp2));
 				if (rs.first)
 				{
-					depths[i] = cp.y - rs.second - heightSeaLevel;
+					depths[i] = cp.y - rs.second - heightMax;
 					if (depths[i] < 0.f)
 						depths[i] = 0.f;
 					break;

@@ -37,7 +37,7 @@ public:
 	);
 
 	// 设置海平面高度
-	void setHeight(float heightSeaLevel);
+	void setHeight(float heightSeaLevel, float waveAmplitude);
 
 #ifdef _SHALLOW_OCEAN_STRIP_
 	// 设置浅海水深
@@ -89,12 +89,14 @@ private:
 	std::list<TerranLiquid::CoastLine>* clList;
 
 	float heightSeaLevel;	// 海平面高度
+	float waveAmplitude;	// 海浪高度
+	float heightMax;		// 海平面高度+海浪高度
 
 #ifdef _SHALLOW_OCEAN_STRIP_
 	float depthShallowOcean;	// 浅海水深
 
 #ifdef _TRANSITION_OCEAN_STRIP_
-	const float widthTrStrip = 20.f;		// 过渡区域宽度
+	const float widthTrStrip = 50.f;		// 过渡区域宽度
 
 	// 浅水区域边界 指向clList中的元素
 	std::vector<bool> isInSwBoundaries;		// clList中的元素是否为浅水区域边界

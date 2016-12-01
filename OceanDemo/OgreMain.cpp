@@ -430,8 +430,8 @@ void COgreMain::createContent(void)
 #ifdef _USE_TERRAIN_LIQUID_
 	tliquid = new TerranLiquid;
 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
-	tliquid->setHeight(-15.f + 3.8f * 2);
-	tliquid->setDepthShallowOcean(-15.f);
+	tliquid->setHeight(-15.f, 3.8f * 2);
+	tliquid->setDepthShallowOcean(-16.f);
 	tliquid->setGridDensity(10.f);
 	tliquid->initialize();
 

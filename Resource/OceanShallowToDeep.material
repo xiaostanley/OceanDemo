@@ -31,7 +31,7 @@ material OceanShallow
 			{
 				param_named BumpScale float 0.3
 				param_named textureScale float2 16 16
-				param_named bumpSpeed float2 0.015 0.015
+				param_named bumpSpeed float2 0.15 0.15
 				param_named_auto time time_0_x 100.0
 				param_named waveFreq float 0.028
 				param_named waveAmp float 3.8
@@ -107,7 +107,7 @@ material OceanTransition
 				param_named waveFreqShallow float 0.028
 				param_named waveFreqDeep float 0.048
 				param_named waveAmpShallow float 3.8
-				param_named waveAmpDeep float 5.8
+				param_named waveAmpDeep float 4.3
 			}
 
 			fragment_program_ref HLSL/OceanTransitionFS
@@ -178,7 +178,7 @@ material OceanDeep
 				param_named bumpSpeed float2 0.15 0.15
 				param_named_auto time time_0_x 100.0
 				param_named waveFreq float 0.048
-				param_named waveAmp float 5.8
+				param_named waveAmp float 4.3
 			}
 
 			fragment_program_ref HLSL/OceanDeepFS
