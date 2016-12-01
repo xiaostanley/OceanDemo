@@ -156,6 +156,15 @@ private:
 
 	// 腐蚀算法提取边界点
 	void _extractBoundaries(const BvMat& raster, BvMat& rasterBd);
+
+	// 删除无效点和面片
+	void _removeInvalidData(
+		const std::vector<bool>& isOceanMesh,
+		const std::vector<bool>& isShallowMesh,
+		const std::vector<bool>& isTransitionMesh,
+		int* clFaces,
+		int countFaces
+	);
 #endif
 #endif
 
@@ -167,7 +176,7 @@ private:
 
 	// 删除无效点和面片
 	void _removeInvalidData(
-		const std::vector<bool>& isNotOceanMesh,
+		const std::vector<bool>& facesDeleted,
 		int* clFaces,
 		int countFaces
 	);

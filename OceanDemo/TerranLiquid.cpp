@@ -565,6 +565,239 @@ void TerranLiquid::_getTransitionBoundary()
 #endif
 }
 
+// static std::vector<int> clFacesDeepLeft(0);
+// static std::vector<int> clFacesShallowLeft(0);
+// static std::vector<int> clFacesTransitionLeft(0);
+
+void TerranLiquid::_removeInvalidData(
+	const std::vector<bool>& isOceanMesh, 
+	const std::vector<bool>& isShallowMesh, 
+	const std::vector<bool>& isTransitionMesh, 
+	int* clFaces, 
+	int countFaces
+)
+{
+	std::vector<int> clFacesDeepLeft;
+	std::vector<int> clFacesShallowLeft;
+	std::vector<int> clFacesTransitionLeft;
+	for (size_t i = 0; i < static_cast<unsigned int>(countFaces); i++)
+	{
+		if (isOceanMesh[i])
+		{
+			if (isShallowMesh[i])
+			{
+				clFacesShallowLeft.push_back(clFaces[3 * i]);
+				clFacesShallowLeft.push_back(clFaces[3 * i + 1]);
+				clFacesShallowLeft.push_back(clFaces[3 * i + 2]);
+			}
+			else if (isTransitionMesh[i])
+			{
+				clFacesTransitionLeft.push_back(clFaces[3 * i]);
+				clFacesTransitionLeft.push_back(clFaces[3 * i + 1]);
+				clFacesTransitionLeft.push_back(clFaces[3 * i + 2]);
+			}
+			else
+			{
+				clFacesDeepLeft.push_back(clFaces[3 * i]);
+				clFacesDeepLeft.push_back(clFaces[3 * i + 1]);
+				clFacesDeepLeft.push_back(clFaces[3 * i + 2]);
+			}
+		}
+	}
+
+	// clPoints中每个点所共享的面片
+	std::vector<std::vector<int>> nrClFacesPerVertex(clPoints.size());
+	for (size_t i = 0; i < clFacesShallowLeft.size(); i++)
+		nrClFacesPerVertex[clFacesShallowLeft[i]].push_back(i / 3);
+	for (size_t i = 0; i < clFacesTransitionLeft.size(); i++)
+		nrClFacesPerVertex[clFacesTransitionLeft[i]].push_back(i / 3);
+	for (size_t i = 0; i < clFacesDeepLeft.size(); i++)
+		nrClFacesPerVertex[clFacesDeepLeft[i]].push_back(i / 3);
+
+	// 更新面片对应顶点索引
+
+	std::vector<Ogre::Vector3> clPointsLeft;
+
+	// key-value: clPoints索引-clPointsLeft索引
+	std::map<size_t, size_t> vertexIndicesUd;
+	for (size_t i = 0; i < clPoints.size(); i++)
+	{
+		if (nrClFacesPerVertex[i].size() != 0)
+		{
+			vertexIndicesUd.insert(std::map<size_t, size_t>::value_type(i, vertexIndicesUd.size()));
+			clPointsLeft.push_back(clPoints[i]);
+		}
+	}
+
+	// 更新面片顶点索引
+	for (auto iter = clFacesShallowLeft.begin(); iter != clFacesShallowLeft.end(); iter++)
+	{
+		auto viter = vertexIndicesUd.find(*iter);
+		if (viter != vertexIndicesUd.end())
+			*iter = viter->second;
+	}
+	for (auto iter = clFacesTransitionLeft.begin(); iter != clFacesTransitionLeft.end(); iter++)
+	{
+		auto viter = vertexIndicesUd.find(*iter);
+		if (viter != vertexIndicesUd.end())
+			*iter = viter->second;
+	}
+	for (auto iter = clFacesDeepLeft.begin(); iter != clFacesDeepLeft.end(); iter++)
+	{
+		auto viter = vertexIndicesUd.find(*iter);
+		if (viter != vertexIndicesUd.end())
+			*iter = viter->second;
+	}
+
+	delete[] vertices;
+	delete[] indices;
+
+	// 删除掉无效点之后的点集
+	vertices = new Ogre::Vector3[clPointsLeft.size()];
+	indices = new unsigned int[isOceanMesh.size() * 3];
+	std::copy(clPointsLeft.begin(), clPointsLeft.end(), vertices);
+	std::copy(clFacesShallowLeft.begin(), clFacesShallowLeft.end(), indices);
+	std::copy(clFacesTransitionLeft.begin(), clFacesTransitionLeft.end(), indices + clFacesShallowLeft.size());
+	std::copy(clFacesDeepLeft.begin(), clFacesDeepLeft.end(), indices + clFacesShallowLeft.size() + clFacesTransitionLeft.size());
+	vertex_count = clPointsLeft.size();
+	index_count = isOceanMesh.size() * 3;
+
+#if 1
+	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/OceanMesh.ply";
+	Helper::exportPlyModel(path, vertices, vertex_count, indices, index_count / 3);
+	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanShallowMesh.ply";
+	Helper::exportPlyModel(path1, &clPointsLeft[0], clPointsLeft.size(), &clFacesShallowLeft[0], clFacesShallowLeft.size() / 3);
+	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanTransitionMesh.ply";
+	Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), &clFacesTransitionLeft[0], clFacesTransitionLeft.size() / 3);
+	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanDeepMesh.ply";
+	Helper::exportPlyModel(path3, &clPointsLeft[0], clPointsLeft.size(), &clFacesDeepLeft[0], clFacesDeepLeft.size() / 3);
+#endif
+
+	/////////////////////////////////////////////////////////////////////////////
+
+	Ogre::String matNameSw = "OceanShallow";
+	Ogre::String matNameTr = "OceanTransition";
+	Ogre::String matNameDp = "OceanDeep";
+
+	size_t numVertices = vertex_count;
+
+	// 三维坐标 法向量 纹理坐标
+	float* coordinates = new float[3 * vertex_count];
+	float* normals = new float[3 * vertex_count];
+	float* textures = new float[2 * vertex_count];
+	for (size_t i = 0; i < vertex_count; i++)
+	{
+		coordinates[3 * i] = vertices[i].x;
+		coordinates[3 * i + 1] = vertices[i].y;
+		coordinates[3 * i + 2] = vertices[i].z;
+
+		normals[3 * i] = normals[3 * i + 2] = 0.f;
+		normals[3 * i + 1] = 1.f;
+
+		textures[2 * i] = (coordinates[3 * i] - mBox.getMinimum().x) / mBox.getSize().x;
+		textures[2 * i + 1] = (coordinates[3 * i + 2] - mBox.getMinimum().z) / mBox.getSize().z;
+	}
+	
+	// 权重
+	float* tangents = new float[3 * vertex_count];
+	for (size_t i = 0; i < vertex_count; i++)
+	{
+		tangents[3 * i] = tangents[3 * i + 1] = tangents[3 * i + 2] = 1.f;
+	}
+
+	// 生成Ogre Mesh
+
+	Ogre::MeshPtr meshPtr = Ogre::MeshManager::getSingleton().createManual("OceanMesh", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+	meshPtr->sharedVertexData = new Ogre::VertexData();
+	meshPtr->sharedVertexData->vertexCount = numVertices;
+
+	Ogre::SubMesh* smshSwPtr = meshPtr->createSubMesh("SubmeshSw");
+	Ogre::SubMesh* smshTrPtr = meshPtr->createSubMesh("SubmeshTr");
+	Ogre::SubMesh* smshDpPtr = meshPtr->createSubMesh("SubmeshDp");
+
+	Ogre::VertexDeclaration*   vdecl = meshPtr->sharedVertexData->vertexDeclaration;
+	Ogre::VertexBufferBinding* vbind = meshPtr->sharedVertexData->vertexBufferBinding;
+	size_t offset = 0;
+	unsigned short bindCounter = 0;
+
+	// 点坐标数据
+	vdecl->addElement(bindCounter, offset, Ogre::VET_FLOAT3, Ogre::VES_POSITION);
+	offset += Ogre::VertexElement::getTypeSize(Ogre::VET_FLOAT3);
+	Ogre::HardwareVertexBufferSharedPtr posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
+		offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+	posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), vertices, true);
+	vbind->setBinding(bindCounter++, posVertexBuffer);
+
+	// 顶点法向量数据
+	if (normals != NULL)
+	{
+		offset = 0;
+		vdecl->addElement(bindCounter, offset, Ogre::VET_FLOAT3, Ogre::VES_NORMAL);
+		offset += Ogre::VertexElement::getTypeSize(Ogre::VET_FLOAT3);
+		posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
+			offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+		posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), normals, true);
+		vbind->setBinding(bindCounter++, posVertexBuffer);
+	}
+
+	// 顶点切向量数据
+	if (tangents != NULL)
+	{
+		offset = 0;
+		vdecl->addElement(bindCounter, offset, Ogre::VET_FLOAT3, Ogre::VES_TANGENT);
+		offset += Ogre::VertexElement::getTypeSize(Ogre::VET_FLOAT3);
+		posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
+			offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+		posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), tangents, true);
+		vbind->setBinding(bindCounter++, posVertexBuffer);
+	}
+
+	// 纹理坐标数据
+	if (textures != NULL)
+	{
+		offset = 0;
+		vdecl->addElement(bindCounter, offset, Ogre::VET_FLOAT2, Ogre::VES_TEXTURE_COORDINATES);
+		offset += Ogre::VertexElement::getTypeSize(Ogre::VET_FLOAT2);
+		posVertexBuffer = Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
+			offset, numVertices, Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+		posVertexBuffer->writeData(0, posVertexBuffer->getSizeInBytes(), textures, true);
+		vbind->setBinding(bindCounter++, posVertexBuffer);
+	}
+
+	// 设置面片顶点索引
+
+	smshSwPtr->indexData->indexCount = clFacesShallowLeft.size();
+	smshSwPtr->indexData->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
+		HardwareIndexBuffer::IT_32BIT, smshSwPtr->indexData->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, true);
+	smshSwPtr->setMaterialName(matNameSw);
+	smshSwPtr->indexData->indexBuffer->writeData(0, smshSwPtr->indexData->indexBuffer->getSizeInBytes(), &clFacesShallowLeft[0], true);
+	smshSwPtr->useSharedVertices = true;
+
+	smshTrPtr->indexData->indexCount = clFacesTransitionLeft.size();
+	smshTrPtr->indexData->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
+		HardwareIndexBuffer::IT_32BIT, smshTrPtr->indexData->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, true);
+	smshTrPtr->setMaterialName(matNameTr);
+	smshTrPtr->indexData->indexBuffer->writeData(0, smshTrPtr->indexData->indexBuffer->getSizeInBytes(), &clFacesTransitionLeft[0], true);
+	smshTrPtr->useSharedVertices = true;
+
+	smshDpPtr->indexData->indexCount = clFacesDeepLeft.size();
+	smshDpPtr->indexData->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
+		HardwareIndexBuffer::IT_32BIT, smshDpPtr->indexData->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, true);
+	smshDpPtr->setMaterialName(matNameDp);
+	smshDpPtr->indexData->indexBuffer->writeData(0, smshDpPtr->indexData->indexBuffer->getSizeInBytes(), &clFacesDeepLeft[0], true);
+	smshDpPtr->useSharedVertices = true;
+
+	meshPtr->_setBounds(mBox);
+
+	meshPtr->load();
+	meshPtr->touch();
+
+	delete[] coordinates;
+	delete[] normals;
+	delete[] tangents;
+	delete[] textures;
+}
+
 std::pair<bool, Ogre::Real> TerranLiquid::_pointsIntersect(const Ogre::Vector3& p)
 {
 	Ogre::Ray ray(p, Ogre::Vector3::NEGATIVE_UNIT_Y);
@@ -660,6 +893,10 @@ void TerranLiquid::_generateOceanGrid(void)
 	delete[] verticesPtr;
 	delete[] constraints;
 
+	// 调整面片顺序
+	for (int i = 0; i < countFaces; i++)
+		std::swap(clFaces[3 * i + 1], clFaces[3 * i + 2]);
+
 #if 1
 	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/grid.ply";
 	//Helper::exportPlyModel(path, verticesPtr, clPoints.size(), faces, countFaces);
@@ -670,8 +907,10 @@ void TerranLiquid::_generateOceanGrid(void)
 	// 计算每个面片中心点在地形mesh中的对应高度
 	// 判断当前面片是否应删除
 
-	std::vector<bool> isShallowMesh(countFaces, false);		// 面片是否应保留在浅水网格中
+	std::vector<bool> isOceanMesh(countFaces, false);		// 面片是否属于海面网格
+	
 #ifdef _SHALLOW_OCEAN_STRIP_
+	std::vector<bool> isShallowMesh(countFaces, false);		// 面片是否应保留在浅水网格中
 #ifdef _TRANSITION_OCEAN_STRIP_ 
 	std::vector<bool> isTransitionMesh(countFaces, false);	// 面片是否应保留在过渡区域网格中
 
@@ -709,6 +948,8 @@ void TerranLiquid::_generateOceanGrid(void)
 				{
 					float th = cp.y - rs.second;
 					if (th < heightSeaLevel)	// 当前海面面片重心高度高于其对应的垂直地形点高程
+					{
+						isOceanMesh[i] = true;
 #ifdef _SHALLOW_OCEAN_STRIP_
 						if (th > depthShallowOcean)
 							isShallowMesh[i] = true;
@@ -734,16 +975,20 @@ void TerranLiquid::_generateOceanGrid(void)
 								isTransitionMesh[i] = true;
 						}
 #endif
-#else
-						isShallowMesh[i] = true;
 #endif
+					}
 					break;
 				}
 			}
 		}
 	}
 
+	// 删除无效点和无效面片
+	// 根据isOceanMesh剔除无效点和无效面片
+	// 同时调整isShallowMesh和isTransitionMesh中的面片索引
+	_removeInvalidData(isOceanMesh, isShallowMesh, isTransitionMesh, clFaces, countFaces);
 
+#if 0
 	// 删除无效点和无效面片
 	_removeInvalidData(isShallowMesh, clFaces, countFaces);
 #if 1
@@ -761,6 +1006,7 @@ void TerranLiquid::_generateOceanGrid(void)
 	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid_tr.ply";
 	//Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), /*(int*)NULL*/&clFacesLeft[0], clFacesLeft.size() / 3);
 	Helper::exportPlyModel(path3, vertices, vertex_count, indices, index_count / 3);
+#endif
 #endif
 
 	gpuDT->releaseMemory();
@@ -783,17 +1029,10 @@ void TerranLiquid::_removeInvalidData(
 		}
 	}
 
-#if 0
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/ocean_grid.ply";
-	Helper::exportPlyModel(path1, &clPoints[0], clPoints.size(), &clFacesLeft[0], clFacesLeft.size() / 3);
-#endif
-
 	// clPoints中每个点所共享的面片
 	std::vector<std::vector<int>> nrClFacesPerVertex(clPoints.size());
 	for (size_t i = 0; i < clFacesLeft.size(); i++)
-	{
 		nrClFacesPerVertex[clFacesLeft[i]].push_back(i / 3);
-	}
 
 	// 更新面片对应顶点索引
 

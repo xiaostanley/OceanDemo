@@ -434,6 +434,10 @@ void COgreMain::createContent(void)
 	tliquid->setDepthShallowOcean(-15.f);
 	tliquid->setGridDensity(10.f);
 	tliquid->initialize();
+
+	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
+	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
+	nodeOs1->attachObject(entOs1);
 #endif
 
 // 	SceneNode* nodeTerraLiq = mSceneMgr->createSceneNode("nodeTerraLiq");
