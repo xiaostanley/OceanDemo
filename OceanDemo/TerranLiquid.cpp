@@ -523,14 +523,14 @@ void TerranLiquid::_getTransitionBoundary()
 		for (size_t col = 0; col < cols; col++)
 			if (raster[row][col])
 				pointsraster.push_back(clRasterPoints[row * cols + col]); 
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/rasterTrSw.ply";
+	const char* path = "Models/rasterTrSw.ply";
 	Helper::exportPlyModel(path, &pointsraster[0], pointsraster.size(), (int*)NULL, 0);
 	std::vector<Ogre::Vector3> pointsw;
 	for (size_t row = 0; row < rows; row++)
 		for (size_t col = 0; col < cols; col++)
 			if (rasterSW[row][col])
 				pointsw.push_back(clRasterPoints[row * cols + col]);
-	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterSw.ply";
+	const char* path3 = "Models/rasterSw.ply";
 	Helper::exportPlyModel(path3, &pointsw[0], pointsw.size(), (int*)NULL, 0);
 #endif
 
@@ -552,7 +552,7 @@ void TerranLiquid::_getTransitionBoundary()
 		for (size_t col = 0; col < cols; col++)
 			if (rasterBd[row][col])
 				pointsrasterDl.push_back(clRasterPoints[row * cols + col]);
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterTrBd.ply";
+	const char* path2 = "Models/rasterTrBd.ply";
 	Helper::exportPlyModel(path2, &pointsrasterDl[0], pointsrasterDl.size(), (int*)NULL, 0);
 #endif
 
@@ -567,7 +567,7 @@ void TerranLiquid::_getTransitionBoundary()
 				clSwBdPoints.push_back(clRasterPoints[row * cols + col]);
 
 #if 1
-	const char* path233 = "D:/Ganymede/DynamicOcean/OceanDemo/rasterSwBd.ply";
+	const char* path233 = "Models/rasterSwBd.ply";
 	Helper::exportPlyModel(path233, &clSwBdPoints[0], clSwBdPoints.size(), (int*)NULL, 0);
 #endif
 }
@@ -670,13 +670,13 @@ void TerranLiquid::_removeInvalidData(
 	index_count = isOceanMesh.size() * 3;
 
 #if 1
-	const char* path = "D:/Ganymede/DynamicOcean/OceanDemo/OceanMesh.ply";
+	const char* path = "Models/OceanMesh.ply";
 	Helper::exportPlyModel(path, vertices, vertex_count, indices, index_count / 3);
-	const char* path1 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanShallowMesh.ply";
+	const char* path1 = "Models/OceanShallowMesh.ply";
 	Helper::exportPlyModel(path1, &clPointsLeft[0], clPointsLeft.size(), &clFacesShallowLeft[0], clFacesShallowLeft.size() / 3);
-	const char* path2 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanTransitionMesh.ply";
+	const char* path2 = "Models/OceanTransitionMesh.ply";
 	Helper::exportPlyModel(path2, &clPointsLeft[0], clPointsLeft.size(), &clFacesTransitionLeft[0], clFacesTransitionLeft.size() / 3);
-	const char* path3 = "D:/Ganymede/DynamicOcean/OceanDemo/OceanDeepMesh.ply";
+	const char* path3 = "Models/OceanDeepMesh.ply";
 	Helper::exportPlyModel(path3, &clPointsLeft[0], clPointsLeft.size(), &clFacesDeepLeft[0], clFacesDeepLeft.size() / 3);
 #endif
 
@@ -835,6 +835,12 @@ void TerranLiquid::_removeInvalidData(
 	delete[] normals;
 	delete[] tangents;
 	delete[] textures;
+
+	// µ¼³öMesh
+#if 1
+	Ogre::MeshSerializer meshSer;
+	meshSer.exportMesh(meshPtr.getPointer(), "F:/Projects/OceanDemo/Resource/OceanGrid.mesh");
+#endif
 }
 
 std::pair<bool, Ogre::Real> TerranLiquid::_pointsIntersect(const Ogre::Vector3& p)

@@ -338,6 +338,7 @@ void COgreMain::createContent(void)
 	Ogre::SceneNode* nodeAxis = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeAxis");
 	nodeAxis->attachObject(axis);
 	nodeAxis->setScale(50.f, 50.f, 50.f);
+	nodeAxis->setVisible(false);
 
 	// 创建摄像头
 	mainCameraView.createCameraNode(mSceneMgr, "MainCamera", 10.f, 99999*6.0f);	// 10 10000
@@ -394,7 +395,7 @@ void COgreMain::createContent(void)
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// 设置雾效
-	//mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.0, 500.f, 5000.f);
+	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 500.f, 90000.f);
 	//mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.001f);
 
 	//设置阴影及环境光
@@ -405,7 +406,7 @@ void COgreMain::createContent(void)
 	Ogre::Light* sunlight = mSceneMgr->createLight("sunlight");
 	sunlight->setType(Ogre::Light::LT_DIRECTIONAL);
 
-	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox", 99999*3, true);
+	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox", 30000.f, true);
 
 #ifdef _TERRAIN_SHOW_
 	// 地形
@@ -423,186 +424,25 @@ void COgreMain::createContent(void)
 	nodeTerraBase->setPosition(-entTerra->getBoundingBox().getCenter());
 	SceneNode* nodeTerra = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra");
 	nodeTerra->addChild(nodeTerraBase);
-	nodeTerra->setScale(0.06f, 0.12f, 0.06f);
+	nodeTerra->setScale(0.06f, 0.18f, 0.06f);
 #endif
 	//nodeTerra->setVisible(false);
 
 #ifdef _USE_TERRAIN_LIQUID_
-	tliquid = new TerranLiquid;
-	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
-	tliquid->setHeight(-15.f, 3.8f * 2);
-	tliquid->setDepthShallowOcean(-16.f);
-	tliquid->setGridDensity(10.f);
-	tliquid->initialize();
+// 	tliquid = new TerranLiquid;
+// 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
+// 	tliquid->setHeight(-15.f, 3.8f * 2);
+// 	tliquid->setDepthShallowOcean(-16.f);
+// 	tliquid->setGridDensity(10.f);
+// 	tliquid->initialize();
 
-	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
-	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
-	nodeOs1->attachObject(entOs1);
-#endif
+// 	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
+// 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
+// 	nodeOs1->attachObject(entOs1);
 
-// 	SceneNode* nodeTerraLiq = mSceneMgr->createSceneNode("nodeTerraLiq");
-// 	nodeTerraLiq->attachObject(tliquid);
-// 	mSceneMgr->getRootSceneNode()->addChild(nodeTerraLiq);
-
-#ifdef _USE_OGRE_WATER_
-	mWater = new OgreWater::Water(mWindow, mSceneMgr, mainCameraView.getCamera());
-	mWater->setWaterDustEnabled(true);
-	mWater->init();
-	mWater->setWaterHeight(300.0f);
-#endif // _USE_OGRE_WATER_
-
-#ifdef _USE_HYDRAX_
-	mHydrax = new Hydrax::Hydrax(mSceneMgr, mainCameraView.getCamera(), mWindow->getViewport(0));
-	Hydrax::Module::ProjectedGrid* mGrid = new Hydrax::Module::ProjectedGrid(mHydrax, new Hydrax::Noise::Perlin(),
-		Ogre::Plane(Ogre::Vector3::UNIT_Y, Ogre::Vector3(0.f, -15.f, 0.f)), 
-		Hydrax::MaterialManager::NM_VERTEX, Hydrax::Module::ProjectedGrid::Options());
-// 	Hydrax::Module::RadialGrid* mGrid = new Hydrax::Module::RadialGrid(mHydrax, new Hydrax::Noise::Perlin(),
-// 		Hydrax::MaterialManager::NM_VERTEX, Hydrax::Module::RadialGrid::Options());
-
-	mHydrax->setModule(static_cast<Hydrax::Module::Module*>(mGrid));
-	mHydrax->loadCfg("HydraxDemo.hdx");
-	mHydrax->create();
-
-#endif // _USE_HYDRAX_
-
-#if 0
-	// 创建海面网格
-	{
-		float* vertices = NULL;
-		float* normals = NULL;
-		float* weights = NULL;
-		float* textures = NULL;
-		int numVertices = 0;
-		unsigned int* indices = NULL;
-		int numFaces = 0;
-
-		float xgrid = 1000.f, zgrid = 1000.f;
-		size_t xseg = 50, zseg = 50;
-		float xintv = xgrid / xseg;
-		float zintv = zgrid / zseg;
-
-		numVertices = (xseg + 1) * (zseg + 1);
-		vertices = new float[3 * numVertices];
-		normals = new float[3 * numVertices];
-		textures = new float[2 * numVertices];
-		weights = new float[3 * numVertices];
-		for (size_t zi = 0; zi <= (size_t)zseg; zi++)
-		{
-			for (size_t xi = 0; xi <= (size_t)xseg; xi++)
-			{
-				size_t pidx = zi * (xseg + 1) + xi;
-				vertices[3 * pidx] = xi * xintv - xgrid / 2.f;
-				vertices[3 * pidx + 1] = 0.f;
-				vertices[3 * pidx + 2] = zi * zintv - zgrid / 2.f;
-				weights[3 * pidx] = xi * xintv / xgrid;
-				weights[3 * pidx + 1] = weights[3 * pidx + 2] = 0.f;
-				normals[3 * pidx] = normals[3 * pidx + 2] = 0.f;
-				normals[3 * pidx + 1] = 1.f;
-				textures[2 * pidx] = xi * xintv / xgrid;
-				textures[2 * pidx + 1] = zi * zintv / zgrid;
-			}
-		}
-
-		numFaces = 2 * xseg * zseg;
-		indices = new unsigned int[3 * numFaces];
-		size_t fidx = 0;
-		for (size_t zi = 0; zi < (size_t)zseg; zi++)
-		{
-			for (size_t xi = 0; xi < (size_t)xseg; xi++)
-			{
-				size_t pidx = zi * (xseg + 1) + xi;
-				indices[3 * fidx] = pidx;
-				indices[3 * fidx + 1] = pidx + xseg + 1;
-				indices[3 * fidx + 2] = pidx + xseg + 2;
-				fidx++;
-				indices[3 * fidx] = pidx;
-				indices[3 * fidx + 1] = pidx + xseg + 2;
-				indices[3 * fidx + 2] = pidx + 1;
-				fidx++;
-			}
-		}
-
-		Ogre::AxisAlignedBox box(-xgrid / 2.f, 0.f, -zgrid / 2.f, xgrid / 2.f, 0.f, zgrid / 2.f);
-
-//		Helper::exportPlyModel("D:/Ganymede/DynamicOcean/OceanDemo/test.ply", vertices, numVertices, indices, numFaces);
-		MeshGenerator::generateMesh(vertices, normals, weights, textures, NULL, numVertices,
-			indices, numFaces, &box,"OceanTransition", 
-			"D:/Libraries/OGRE/OgreSDK_vc14_v1_10_0/media/models/", "oceanplanew");
-// 		MeshGenerator::generateMesh(vertices, normals, NULL, textures, NULL, numVertices,
-// 			indices, numFaces, &box, "OceanShallow",
-// 			"D:/Libraries/OGRE/OgreSDK_vc14_v1_10_0/media/models/", "oceanplane");
-
-		delete[] vertices;
-		delete[] normals;
-		delete[] textures;
-		delete[] weights;
-		delete[] indices;
-	}
-#endif
-#if 0
-	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane1", "oceanplane.mesh");
-	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
-	nodeOs1->attachObject(entOs1);
-	nodeOs1->translate(Ogre::Vector3(0.f, -15.f, 0.f));
-
-	Ogre::Entity* entOs2 = mSceneMgr->createEntity("OceanPlane2", "oceanplanew.mesh");
-	SceneNode* nodeOs2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane2");
-	nodeOs2->attachObject(entOs2);
-	nodeOs2->translate(Ogre::Vector3(1000.f, -15.f, 0.f));
-
-	Ogre::Entity* entOs3 = mSceneMgr->createEntity("OceanPlane3", "oceanplane.mesh");
-	SceneNode* nodeOs3 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane3");
-	nodeOs3->attachObject(entOs3);
-	entOs3->setMaterialName("OceanDeep");
-	nodeOs3->translate(Ogre::Vector3(2000.f, -15.f, 0.f));
-#endif
-
-#if 0
-	Ogre::Vector3 minVec = (entTerra->getBoundingBox().getMinimum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().x;
-	Ogre::Vector3 maxVec = (entTerra->getBoundingBox().getMaximum() - entTerra->getBoundingBox().getCenter()) * nodeTerra->getScale().z;
-
-	float xgrid = Ogre::Math::Abs(maxVec.x - minVec.x);
-	float ygrid = Ogre::Math::Abs(maxVec.z - minVec.z);
-	xgrid = ygrid = 1000.f;
-	
-	Ogre::String oceanMatlName = "Ocean2_HLSL_GLSL";
-
-	Ogre::Plane oceanSurface;
-	oceanSurface.normal = Ogre::Vector3::UNIT_Y;
-// 	oceanSurface.d = 15.f;
-// 	Ogre::MeshManager::getSingleton().createPlane("OceanSurface", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-// 		oceanSurface, xgrid, ygrid, 50, 50, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
-// 
-// 	Entity* entOceanSurface = mSceneMgr->createEntity("entOceanSurface", "OceanSurface");
-// 	SceneNode* nodeOceanSurface = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanSurface");
-// 	nodeOceanSurface->attachObject(entOceanSurface);
-// 	entOceanSurface->setMaterialName(oceanMatlName);
-
-	oceanSurface.d = 0.f;
-	MeshPtr osptr = Ogre::MeshManager::getSingleton().createPlane("OceanSurface", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-		oceanSurface, xgrid, ygrid, 50, 50, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
-	osptr->getSubMesh(0)->setMaterialName(oceanMatlName);
-
-	// 导出
-	MeshSerializer ser;
-	ser.exportMesh(osptr.getPointer(), "D:/Libraries/OGRE/OgreSDK_vc14_v1_10_0/media/models/oceanplane.mesh");
-
-	Entity* entOceanSurface = mSceneMgr->createEntity("entOceanSurface", "oceanplane.mesh");
-	SceneNode* nodeOceanSurface = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanSurface");
-	nodeOceanSurface->attachObject(entOceanSurface);
-	nodeOceanSurface->showBoundingBox(true);
-
-// 	Ogre::Plane os2;
-// 	os2.normal = Ogre::Vector3::UNIT_Y;
-// 	os2.d = oceanSurface.d;
-// 	Ogre::MeshManager::getSingleton().createPlane("OceanSurface2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-// 		os2, xgrid, ygrid, 100, 100, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
-// 	Entity* entOS2 = mSceneMgr->createEntity("entOS2", "OceanSurface2");
-// 	SceneNode* nodeOS2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOS2");
-// 	nodeOS2->attachObject(entOS2);
-// 	nodeOS2->translate(Ogre::Vector3(xgrid, 0.f, 0.f));
-// 	entOS2->setMaterialName(oceanMatlName);
-
+	Ogre::Entity* entOs = mSceneMgr->createEntity("OceanPlane", "OceanGrid.mesh");
+	SceneNode* nodeOs = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
+	nodeOs->attachObject(entOs);
 #endif
 }
 
@@ -688,6 +528,11 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 	{
 		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
 		nodeTerra->flipVisibility(true);
+	}
+	if (e.key == OIS::KC_U)
+	{
+		SceneNode* nodeOceanSurface = mSceneMgr->getSceneNode("nodeOceanPlane");
+		nodeOceanSurface->flipVisibility(true);
 	}
 	// Z-Fighting演示
 // 	if (e.key == OIS::KC_U)

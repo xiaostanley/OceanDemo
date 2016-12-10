@@ -87,14 +87,14 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(LIBNOISE_HOME)\include;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OGRE_VC14_V1_10_0)\lib\debug;$(OGRE_VC14_V1_10_0)\lib\debug\opt;$(OGRE_VC14_V1_10_0)\lib\debug\opt\samples;$(OGRE_VC14_V1_10_0)\boost\lib;%(AdditionalLibraryDirectories);$(LIBNOISE_HOME)\lib;$(GPUDT)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libboost_chrono-vc140-mt-gd-1_59.lib;libboost_date_time-vc140-mt-gd-1_59.lib;libboost_system-vc140-mt-gd-1_59.lib;libboost_thread-vc140-mt-gd-1_59.lib;OgreMain_d.lib;OgreRTShaderSystem_d.lib;OgreTerrain_d.lib;OgrePaging_d.lib;OgreVolume_d.lib;OgreOverlay_d.lib;OIS_d.lib;cg.lib;libnoise.lib;%(AdditionalDependencies);GPUDT.lib;Hydrax.lib</AdditionalDependencies>
+      <AdditionalDependencies>libboost_chrono-vc140-mt-gd-1_59.lib;libboost_date_time-vc140-mt-gd-1_59.lib;libboost_system-vc140-mt-gd-1_59.lib;libboost_thread-vc140-mt-gd-1_59.lib;OgreMain_d.lib;OgreRTShaderSystem_d.lib;OgreTerrain_d.lib;OgrePaging_d.lib;OgreVolume_d.lib;OgreOverlay_d.lib;OIS_d.lib;cg.lib;%(AdditionalDependencies);GPUDT.lib;Hydrax.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>
@@ -121,7 +121,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(LIBNOISE_HOME)\include;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OGRE_VC14_V1_10_0)\boost;$(OGRE_VC14_V1_10_0)\include\OGRE;$(OGRE_VC14_V1_10_0)\include\OIS;$(OGRE_VC14_V1_10_0)\include;$(OGRE_VC14_V1_10_0)\Plugins\PCZSceneManager;$(OGRE_VC14_V1_10_0)\Plugins\OctreeZone;$(OGRE_VC14_V1_10_0)\include\OGRE\RTShaderSystem;$(OGRE_VC14_V1_10_0)\include\OGRE\Terrain;$(OGRE_VC14_V1_10_0)\include\OGRE\Paging;$(OGRE_VC14_V1_10_0)\include\OGRE\Volume;$(OGRE_VC14_V1_10_0)\include\Hydrax;$(OGRE_VC14_V1_10_0)\include\OGRE\Overlay;$(GPUDT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -129,8 +129,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OGRE_VC14_V1_10_0)\lib\release;$(OGRE_VC14_V1_10_0)\boost\lib;$(OGRE_VC14_V1_10_0)\lib\release\opt;$(OGRE_VC14_V1_10_0)\lib\release\opt\samples;%(AdditionalLibraryDirectories);$(LIBNOISE_HOME)\lib;$(GPUDT)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libboost_chrono-vc140-mt-1_59.lib;libboost_date_time-vc140-mt-1_59.lib;libboost_system-vc140-mt-1_59.lib;libboost_thread-vc140-mt-1_59.lib;OgreMain.lib;OgreRTShaderSystem.lib;OgreTerrain.lib;OgrePaging.lib;OgreVolume.lib;OgreOverlay.lib;OIS.lib;cg.lib;libnoise.lib;%(AdditionalDependencies);GPUDT.lib;Hydrax.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OGRE_VC14_V1_10_0)\lib\release;$(OGRE_VC14_V1_10_0)\boost\lib;$(OGRE_VC14_V1_10_0)\lib\release\opt;$(OGRE_VC14_V1_10_0)\lib\release\opt\samples;%(AdditionalLibraryDirectories);$(GPUDT)\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libboost_chrono-vc140-mt-1_59.lib;libboost_date_time-vc140-mt-1_59.lib;libboost_system-vc140-mt-1_59.lib;libboost_thread-vc140-mt-1_59.lib;OgreMain.lib;OgreRTShaderSystem.lib;OgreTerrain.lib;OgrePaging.lib;OgreVolume.lib;OgreOverlay.lib;OIS.lib;cg.lib;%(AdditionalDependencies);GPUDT.lib;Hydrax.lib</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:No %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
