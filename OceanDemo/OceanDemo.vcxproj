@@ -179,12 +179,10 @@
     <ClCompile Include="TerranLiquid.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Resource\OceanDeep.frag" />
     <None Include="..\Resource\OceanDeep.vert" />
     <None Include="..\Resource\OceanShallow.frag" />
     <None Include="..\Resource\OceanShallow.vert" />
     <None Include="..\Resource\OceanShallowToDeep.material" />
-    <None Include="..\Resource\OceanTransition.frag" />
     <None Include="..\Resource\OceanTransition.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -163,7 +163,8 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 
 	// 显示帧率
 	Ogre::OverlayElement* textArea = OverlayManager::getSingleton().getOverlayElement("CodeText");
-	textArea->setCaption(Ogre::DisplayString(L"FPS: ") + Ogre::DisplayString(Ogre::StringConverter::toString(mWindow->getBestFPS())));
+	if (textArea->isVisible())
+		textArea->setCaption(Ogre::DisplayString(L"FPS: ") + Ogre::DisplayString(Ogre::StringConverter::toString(mWindow->getBestFPS())));
 
 	return true;
 }
@@ -433,9 +434,9 @@ void COgreMain::createContent(void)
 // 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
 // 	tliquid->setHeight(-15.f, 3.8f * 2);
 // 	tliquid->setDepthShallowOcean(-16.f);
-// 	tliquid->setGridDensity(10.f);
+// 	tliquid->setGridDensity(2.f);
 // 	tliquid->initialize();
-
+// 
 // 	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
 // 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
 // 	nodeOs1->attachObject(entOs1);
@@ -523,16 +524,23 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
 		entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
 	}
-	// 不显示地形
-	if (e.key == OIS::KC_I)
+	
+	if (e.key == OIS::KC_I)		// 不显示地形
 	{
 		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
 		nodeTerra->flipVisibility(true);
 	}
-	if (e.key == OIS::KC_U)
+	if (e.key == OIS::KC_U)		// 不显示海面
 	{
 		SceneNode* nodeOceanSurface = mSceneMgr->getSceneNode("nodeOceanPlane");
 		nodeOceanSurface->flipVisibility(true);
+	}
+	if (e.key == OIS::KC_Y)
+	{
+		if (mainOverlay->isVisible())
+			mainOverlay->hide();
+		else
+			mainOverlay->show();
 	}
 	// Z-Fighting演示
 // 	if (e.key == OIS::KC_U)

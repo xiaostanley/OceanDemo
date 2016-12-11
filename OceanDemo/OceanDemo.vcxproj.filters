@@ -70,13 +70,7 @@
     <None Include="..\Resource\OceanShallowToDeep.material">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\Resource\OceanTransition.frag">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="..\Resource\OceanTransition.vert">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\Resource\OceanDeep.frag">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

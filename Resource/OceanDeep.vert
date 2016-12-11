@@ -49,22 +49,23 @@ VS_OUTPUT main(VS_INPUT IN,
 {
 	VS_OUTPUT OUT;
 
-	#define NWAVES 2
+	#define NWAVES 3
 	Wave wave[NWAVES] = 
 	{
-		{ waveFreq, waveAmp * 1.5, 0.5, float2(-1, 0) },
-		{ waveFreq * 2, waveAmp, 1.7, float2(-0.7, 0.7) }
+		{ waveFreq, waveAmp, 0.5, float2(-1, 0) },
+		{ waveFreq * 1.2, waveAmp * 0.8, 1.7, float2(-0.7, 0.7) },
+		{ waveFreq * 0.9, waveAmp * 0.5, 0.9, float2(0, -1)}
 	};
 
     //float4 P = IN.ObjPos;
-	float4 P = mul(World, IN.ObjPos);
+	float4 P = mul(World, IN.ObjPos);	// 必须先转化为世界坐标
 
 	// sum waves
 	float ddx = 0.0, ddy = 0.0;
 	float deriv;
 	float angle;
 
-	// wave synthesis using two sine waves at different frequencies and phase shift
+	// wave synthesis using sine waves at different frequencies and phase shift
 	for(int i = 0; i<NWAVES; ++i)
 	{
 		angle = dot(wave[i].dir, P.xz) * wave[i].freq + time * wave[i].phase;
@@ -82,17 +83,6 @@ VS_OUTPUT main(VS_INPUT IN,
 	OUT.rotMatrix1.xyz = BumpScale * normalize(float3(1, ddy, 0)); // Binormal
 	OUT.rotMatrix2.xyz = BumpScale * normalize(float3(0, ddx, 1)); // Tangent
 	OUT.rotMatrix3.xyz = normalize(float3(ddx, 1, ddy)); // Normal
-
-	// 2016-11-25 14:25:53 自己计算
-//	float3 cameraDir = normalize(mul(IN.ObjPos, WorldView).xyz);
-//	float3 worldDir = normalize(mul(float4(cameraDir, 0.0), invView).xyz);
-//	float t = -eyePosition.y / worldDir.y;
-//	float2 tpos = eyePosition.xz + t * worldDir.xz;
-//	float4 h = mul(WorldViewProj, P);
-//	OUT.ClipPos = float4(tpos.x, h.y, tpos.y, h.w);
-
-//	P.x = eyePosition.x + ((P.y - eyePosition.y) / (IN.ObjPos.y - eyePosition.y)) * (IN.ObjPos.x - eyePosition.x);
-//	P.z = eyePosition.z + ((P.y - eyePosition.y) / (IN.ObjPos.y - eyePosition.y)) * (IN.ObjPos.z - eyePosition.z);
 
 	//OUT.ClipPos = mul(WorldViewProj, P);
 	OUT.ClipPos = mul(ViewProj, P);
