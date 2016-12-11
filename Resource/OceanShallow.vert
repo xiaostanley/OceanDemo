@@ -86,6 +86,6 @@ VS_OUTPUT main(VS_INPUT IN,
 	OUT.bumpCoord1.xy = IN.TexCoord*textureScale * 2.0 + time * bumpSpeed * 4.0;
 	OUT.bumpCoord2.xy = IN.TexCoord*textureScale * 4.0 + time * bumpSpeed * 8.0;
 
-	OUT.eyeVector = P.xyz - eyePosition; // eye position in vertex space
+	OUT.eyeVector = IN.ObjPos.xyz - eyePosition; // eye position in vertex space
 	return OUT;
 }

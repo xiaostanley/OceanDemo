@@ -396,7 +396,7 @@ void COgreMain::createContent(void)
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// 设置雾效
-	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 500.f, 90000.f);
+	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 100.f, 90000.f);
 	//mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.001f);
 
 	//设置阴影及环境光

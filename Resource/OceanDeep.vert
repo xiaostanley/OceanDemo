@@ -34,6 +34,49 @@ struct Wave
   float2 dir;
 };
 
+#define NUM_NOISE_OCTAVES 5
+float hash(float n) 
+{ 
+	return frac(sin(n) * 1e4); 
+}
+float hash(float2 p) 
+{ 
+	return frac(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); 
+	}
+
+float noisePos(float2 x) 
+{
+    float2 i = floor(x);
+    float2 f = frac(x);
+
+	// Four corners in 2D of a tile
+	float a = hash(i);
+    float b = hash(i + float2(1.0, 0.0));
+    float c = hash(i + float2(0.0, 1.0));
+    float d = hash(i + float2(1.0, 1.0));
+
+	// Same code, with the clamps in smoothstep and common subexpressions
+	// optimized away.
+    float2 u = f * f * (3.0 - 2.0 * f);
+	return lerp(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+float fbm(float2 x) 
+{
+	float v = 0.0;
+	float a = 0.5;
+	float2 shift = float2(100, 100);
+
+	// Rotate to reduce axial bias
+    float2x2 rot = float2x2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
+	for (int i = 0; i < NUM_NOISE_OCTAVES; ++i) {
+		v += a * noisePos(x);
+		x = mul(rot, x) * 2.0 + shift;
+		a *= 0.5;
+	}
+	return v;
+}
+
 VS_OUTPUT main(VS_INPUT IN,
 		//uniform float4x4 WorldViewProj,
 		uniform float4x4 World,
@@ -71,6 +114,10 @@ VS_OUTPUT main(VS_INPUT IN,
 		angle = dot(wave[i].dir, P.xz) * wave[i].freq + time * wave[i].phase;
 		P.y += wave[i].amp * sin( angle );
 
+		// 2016-12-11 14:56:07 Ëæ»ú¸ß¶È
+		float rd = fbm(P.xz - float2(time * 0.5, time * 0.5));
+		P.y += 0.25 * rd;
+
 		// calculate derivate of wave function
 		deriv = wave[i].freq * wave[i].amp * cos(angle);
 		ddx -= deriv * wave[i].dir.x;
@@ -92,6 +139,6 @@ VS_OUTPUT main(VS_INPUT IN,
 	OUT.bumpCoord1.xy = IN.TexCoord*textureScale * 2.0 + time * bumpSpeed * 4.0;
 	OUT.bumpCoord2.xy = IN.TexCoord*textureScale * 4.0 + time * bumpSpeed * 8.0;
 
-	OUT.eyeVector = P.xyz - eyePosition; // eye position in vertex space
+	OUT.eyeVector = IN.ObjPos.xyz - eyePosition; // eye position in vertex space
 	return OUT;
 }
