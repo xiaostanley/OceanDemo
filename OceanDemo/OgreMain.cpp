@@ -23,7 +23,8 @@ COgreMain::COgreMain(void)
 	cameraLeftTurn(false),
 	cameraRightTurn(false),
 	cameraSpeed(40.0f),
-	boundaryVisble(true)
+	boundaryVisble(true),
+	gridShowIdx(0)
 #ifdef _USE_TERRAIN_LIQUID_
 	, tliquid(NULL)
 #endif
@@ -393,10 +394,12 @@ void COgreMain::createContent(void)
 	textArea->setCaption(Ogre::DisplayString("FPS"));
 	ovContainer->addChild(textArea);
 
+	mainOverlay->hide();
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// 设置雾效
-	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 100.f, 90000.f);
+	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 50.f, 50000.f);
 	//mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.001f);
 
 	//设置阴影及环境光
@@ -425,7 +428,7 @@ void COgreMain::createContent(void)
 	nodeTerraBase->setPosition(-entTerra->getBoundingBox().getCenter());
 	SceneNode* nodeTerra = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra");
 	nodeTerra->addChild(nodeTerraBase);
-	nodeTerra->setScale(0.06f, 0.18f, 0.06f);
+	nodeTerra->setScale(0.06f, 0.14f, 0.06f);
 #endif
 	//nodeTerra->setVisible(false);
 
@@ -435,7 +438,7 @@ void COgreMain::createContent(void)
 // 	tliquid->setHeight(-15.f, 3.8f * 2);
 // 	tliquid->setDepthShallowOcean(-16.f);
 // 	tliquid->setGridDensity(2.f);
-// 	tliquid->initialize();
+// 	tliquid->generate();
 // 
 // 	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
 // 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
@@ -524,17 +527,13 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
 		entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
 	}
-	
-	if (e.key == OIS::KC_I)		// 不显示地形
+	// 切换地形显示
+	if (e.key == OIS::KC_I)
 	{
 		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
 		nodeTerra->flipVisibility(true);
 	}
-	if (e.key == OIS::KC_U)		// 不显示海面
-	{
-		SceneNode* nodeOceanSurface = mSceneMgr->getSceneNode("nodeOceanPlane");
-		nodeOceanSurface->flipVisibility(true);
-	}
+	// 切换FPS显示
 	if (e.key == OIS::KC_Y)
 	{
 		if (mainOverlay->isVisible())
@@ -542,15 +541,43 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		else
 			mainOverlay->show();
 	}
-	// Z-Fighting演示
-// 	if (e.key == OIS::KC_U)
-// 	{
-// 		mainCameraView.getCamera()->setNearClipDistance(0.1f);
-// 	}
-// 	else if (e.key == OIS::KC_Y)
-// 	{
-// 		mainCameraView.getCamera()->setNearClipDistance(10.f);
-// 	}
+	// 切换三种海面网格的显示
+	if (e.key == OIS::KC_0)
+	{
+		Entity* entTerra = mSceneMgr->getEntity("OceanPlane");
+		SubEntity* subEntSw = entTerra->getSubEntity("SubmeshSw");
+		SubEntity* subEntTr = entTerra->getSubEntity("SubmeshTr");
+		SubEntity* subEntDp = entTerra->getSubEntity("SubmeshDp");
+
+		if (gridShowIdx == 0)
+		{
+			if (subEntSw != NULL)  subEntSw->setVisible(true);
+			if (subEntTr != NULL)  subEntTr->setVisible(false);
+			if (subEntDp != NULL)  subEntDp->setVisible(false);
+			gridShowIdx++;
+		}
+		else if (gridShowIdx == 1)
+		{
+			if (subEntSw != NULL)  subEntSw->setVisible(false);
+			if (subEntTr != NULL)  subEntTr->setVisible(false);
+			if (subEntDp != NULL)  subEntDp->setVisible(true);
+			gridShowIdx++;
+		}
+		else if (gridShowIdx == 2)
+		{
+			if (subEntSw != NULL)  subEntSw->setVisible(false);
+			if (subEntTr != NULL)  subEntTr->setVisible(true);
+			if (subEntDp != NULL)  subEntDp->setVisible(false);
+			gridShowIdx++;
+		}
+		else
+		{
+			if (subEntSw != NULL)  subEntSw->setVisible(true);
+			if (subEntTr != NULL)  subEntTr->setVisible(true);
+			if (subEntDp != NULL)  subEntDp->setVisible(true);
+			gridShowIdx = 0;
+		}
+	}
 #endif
 
 	return true;

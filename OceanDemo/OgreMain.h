@@ -123,6 +123,9 @@ private:
 
 	// 边界可见性
 	bool boundaryVisble;
+
+	// 海面网格显示切换
+	int gridShowIdx;
 };
 
 #endif // !

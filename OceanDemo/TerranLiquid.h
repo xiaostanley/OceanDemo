@@ -48,7 +48,7 @@ public:
 	void setGridDensity(float density);
 
 	// ≥ı ºªØ
-	void initialize(void);
+	void generate(void);
 
 // public:
 // 	virtual Ogre::uint32 getTypeFlags() const;

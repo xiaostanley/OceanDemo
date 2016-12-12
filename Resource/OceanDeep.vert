@@ -113,6 +113,7 @@ VS_OUTPUT main(VS_INPUT IN,
 	{
 		angle = dot(wave[i].dir, P.xz) * wave[i].freq + time * wave[i].phase;
 		P.y += wave[i].amp * sin( angle );
+		//P.y += wave[i].amp * (1.0 - sin( angle ));
 
 		// 2016-12-11 14:56:07 Ëæ»ú¸ß¶È
 		float rd = fbm(P.xz - float2(time * 0.5, time * 0.5));

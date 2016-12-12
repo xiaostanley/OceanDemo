@@ -52,7 +52,7 @@ void TerranLiquid::setInputParas(Ogre::Root * mRoot, Ogre::SceneManager * mScene
 	this->transPos = transPos;
 }
 
-void TerranLiquid::initialize(void)
+void TerranLiquid::generate(void)
 {
 	entTerra = mSceneMgr->getEntity(nameTerra);
 	scale = nodeTerra->getScale();

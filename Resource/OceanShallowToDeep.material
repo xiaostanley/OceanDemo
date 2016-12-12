@@ -100,7 +100,7 @@ material OceanTransition
 				param_named waveFreqShallow float 0.2
 				param_named waveFreqDeep float 0.5
 				param_named waveAmpShallow float 0.13
-				param_named waveAmpDeep float 0.3
+				param_named waveAmpDeep float 0.2
 			}
 
 			fragment_program_ref HLSL/OceanShallowFS
@@ -164,7 +164,7 @@ material OceanDeep
 				param_named bumpSpeed float2 0.025 0.025
 				param_named_auto time time_0_x 200.0
 				param_named waveFreq float 0.5
-				param_named waveAmp float 0.3
+				param_named waveAmp float 0.2
 			}
 
 			fragment_program_ref HLSL/OceanShallowFS
