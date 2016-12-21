@@ -23,7 +23,7 @@ COgreMain::COgreMain(void)
 	cameraLeftTurn(false),
 	cameraRightTurn(false),
 	cameraSpeed(40.0f),
-	boundaryVisble(true),
+	boundaryVisble(false),
 	gridShowIdx(0)
 #ifdef _USE_TERRAIN_LIQUID_
 	, tliquid(NULL)
@@ -413,37 +413,89 @@ void COgreMain::createContent(void)
 	mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox", 30000.f, true);
 
 #ifdef _TERRAIN_SHOW_
+	Ogre::Vector3 center;
 	// µØÐÎ
-	Entity* entTerra = mSceneMgr->createEntity("entTerra", "17002190PAN_2048.mesh");
-	entTerra->getSubEntity(1)->setVisible(boundaryVisble);
-	entTerra->getSubEntity(2)->setVisible(boundaryVisble);
-	entTerra->getSubEntity(3)->setVisible(boundaryVisble);
-	entTerra->getSubEntity(4)->setVisible(boundaryVisble);
-	entTerra->getSubEntity(5)->setVisible(!boundaryVisble);
-	entTerra->getSubEntity(6)->setVisible(!boundaryVisble);
-	entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
-	entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
-	SceneNode* nodeTerraBase = mSceneMgr->createSceneNode("nodeTerraBase");
-	nodeTerraBase->attachObject(entTerra);
-	nodeTerraBase->setPosition(-entTerra->getBoundingBox().getCenter());
-	SceneNode* nodeTerra = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra");
-	nodeTerra->addChild(nodeTerraBase);
-	nodeTerra->setScale(0.06f, 0.14f, 0.06f);
+	Entity* entTerra1 = mSceneMgr->createEntity("entTerra1", "17002190PAN_2048.mesh");
+	entTerra1->getSubEntity(1)->setVisible(boundaryVisble);
+	entTerra1->getSubEntity(2)->setVisible(boundaryVisble);
+	entTerra1->getSubEntity(3)->setVisible(boundaryVisble);
+	entTerra1->getSubEntity(4)->setVisible(boundaryVisble);
+	entTerra1->getSubEntity(5)->setVisible(!boundaryVisble);
+	entTerra1->getSubEntity(6)->setVisible(!boundaryVisble);
+	entTerra1->getSubEntity(7)->setVisible(!boundaryVisble);
+	entTerra1->getSubEntity(8)->setVisible(!boundaryVisble);
+	SceneNode* nodeTerraBase1 = mSceneMgr->createSceneNode("nodeTerraBase1");
+	nodeTerraBase1->attachObject(entTerra1);
+	nodeTerraBase1->setPosition(-entTerra1->getBoundingBox().getCenter());
+	center = -entTerra1->getBoundingBox().getCenter();
+	SceneNode* nodeTerra1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra1");
+	nodeTerra1->addChild(nodeTerraBase1);
+	nodeTerra1->setScale(0.06f, 0.14f, 0.06f);
+
+// 	Entity* entTerra2 = mSceneMgr->createEntity("entTerra2", "18002190PAN_2048.mesh");
+// 	entTerra2->getSubEntity(1)->setVisible(boundaryVisble);
+// 	entTerra2->getSubEntity(2)->setVisible(boundaryVisble);
+// 	entTerra2->getSubEntity(3)->setVisible(boundaryVisble);
+// 	entTerra2->getSubEntity(4)->setVisible(boundaryVisble);
+// 	entTerra2->getSubEntity(5)->setVisible(!boundaryVisble);
+// 	entTerra2->getSubEntity(6)->setVisible(!boundaryVisble);
+// 	entTerra2->getSubEntity(7)->setVisible(!boundaryVisble);
+// 	entTerra2->getSubEntity(8)->setVisible(!boundaryVisble);
+// 	SceneNode* nodeTerraBase2 = mSceneMgr->createSceneNode("nodeTerraBase2");
+// 	nodeTerraBase2->attachObject(entTerra2);
+// 	nodeTerraBase2->setPosition(center + Ogre::Vector3(0.f, 0.f, 6.05f));
+// 	SceneNode* nodeTerra2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra2");
+// 	nodeTerra2->addChild(nodeTerraBase2);
+// 	nodeTerra2->setScale(0.06f, 0.14f, 0.06f);
+// 
+// 	Entity* entTerra3 = mSceneMgr->createEntity("entTerra3", "17002200PAN_2048.mesh");
+// 	entTerra3->getSubEntity(1)->setVisible(boundaryVisble);
+// 	entTerra3->getSubEntity(2)->setVisible(boundaryVisble);
+// 	entTerra3->getSubEntity(3)->setVisible(boundaryVisble);
+// 	entTerra3->getSubEntity(4)->setVisible(boundaryVisble);
+// 	entTerra3->getSubEntity(5)->setVisible(!boundaryVisble);
+// 	entTerra3->getSubEntity(6)->setVisible(!boundaryVisble);
+// 	entTerra3->getSubEntity(7)->setVisible(!boundaryVisble);
+// 	entTerra3->getSubEntity(8)->setVisible(!boundaryVisble);
+// 	SceneNode* nodeTerraBase3 = mSceneMgr->createSceneNode("nodeTerraBase3");
+// 	nodeTerraBase3->attachObject(entTerra3);
+// 	nodeTerraBase3->setPosition(center + Ogre::Vector3(-6.05f, 0.f, 0.f));
+// 	SceneNode* nodeTerra3 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra3");
+// 	nodeTerra3->addChild(nodeTerraBase3);
+// 	nodeTerra3->setScale(0.06f, 0.14f, 0.06f);
+// 
+// 	Entity* entTerra4 = mSceneMgr->createEntity("entTerra4", "18002200PAN_2048.mesh");
+// 	entTerra4->getSubEntity(1)->setVisible(boundaryVisble);
+// 	entTerra4->getSubEntity(2)->setVisible(boundaryVisble);
+// 	entTerra4->getSubEntity(3)->setVisible(boundaryVisble);
+// 	entTerra4->getSubEntity(4)->setVisible(boundaryVisble);
+// 	entTerra4->getSubEntity(5)->setVisible(!boundaryVisble);
+// 	entTerra4->getSubEntity(6)->setVisible(!boundaryVisble);
+// 	entTerra4->getSubEntity(7)->setVisible(!boundaryVisble);
+// 	entTerra4->getSubEntity(8)->setVisible(!boundaryVisble);
+// 	SceneNode* nodeTerraBase4 = mSceneMgr->createSceneNode("nodeTerraBase4");
+// 	nodeTerraBase4->attachObject(entTerra4);
+// 	nodeTerraBase4->setPosition(center + Ogre::Vector3(-6.05f, 0.f, 6.05f));
+// 	SceneNode* nodeTerra4 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra4");
+// 	nodeTerra4->addChild(nodeTerraBase4);
+// 	nodeTerra4->setScale(0.06f, 0.14f, 0.06f);
+	
+	
 #endif
 	//nodeTerra->setVisible(false);
 
 #ifdef _USE_TERRAIN_LIQUID_
 // 	tliquid = new TerranLiquid;
-// 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra, "entTerra", -entTerra->getBoundingBox().getCenter());
+// 	tliquid->setInputParas(mRoot, mSceneMgr, nodeTerra1, "entTerra1", -entTerra1->getBoundingBox().getCenter());
 // 	tliquid->setHeight(-15.f, 3.8f * 2);
 // 	tliquid->setDepthShallowOcean(-16.f);
-// 	tliquid->setGridDensity(1.f);	// 2.f
+// 	tliquid->setGridDensity(2.f);	// 2.f
 // 	tliquid->generate();
 // 	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane", "OceanMesh");
 // 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
 // 	nodeOs1->attachObject(entOs1);
 
-	Ogre::Entity* entOs = mSceneMgr->createEntity("OceanPlane", "OceanGrid.mesh");
+	Ogre::Entity* entOs = mSceneMgr->createEntity("OceanPlane", "OceanGrid1.mesh");
 	SceneNode* nodeOs = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
 	nodeOs->attachObject(entOs);
 #endif

@@ -1,0 +1,72 @@
+
+material 17002190PAN_2048
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 1 1 1
+			lighting off
+			
+			texture_unit
+			{
+				//texture 17002190_8192.jpg
+				texture 17002190_4096.jpg
+			}
+		}
+	}
+}
+
+material 17002200PAN_2048
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 1 1 1
+			lighting off
+			
+			texture_unit
+			{
+				//texture 17002200_8192.jpg
+				texture 17002200_4096.jpg
+			}
+		}
+	}
+}
+
+material 18002190PAN_2048
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 1 1 1
+			lighting off
+			
+			texture_unit
+			{
+				//texture 18002190_8192.jpg
+				texture 18002190_4096.jpg
+			}
+		}
+	}
+}
+
+material 18002200PAN_2048
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 1 1 1
+			lighting off
+			
+			texture_unit
+			{
+				//texture 18002200_8192.jpg
+				texture 18002200_4096.jpg
+			}
+		}
+	}
+}
