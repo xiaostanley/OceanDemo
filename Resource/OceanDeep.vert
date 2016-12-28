@@ -42,7 +42,7 @@ float hash(float n)
 float hash(float2 p) 
 { 
 	return frac(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); 
-	}
+}
 
 float noisePos(float2 x) 
 {
@@ -96,8 +96,8 @@ VS_OUTPUT main(VS_INPUT IN,
 	Wave wave[NWAVES] = 
 	{
 		{ waveFreq, waveAmp, 0.5, float2(-1, 0) },
-		{ waveFreq * 1.2, waveAmp * 0.8, 1.7, float2(-0.7, 0.7) },
-		{ waveFreq * 0.9, waveAmp * 0.5, 0.9, float2(0, -1)}
+		{ waveFreq * 0.7, waveAmp * 0.8, 1.7, float2(-0.7, 0.7) },
+		{ waveFreq * 0.3, waveAmp * 0.3, 0.9, float2(0, -1)}
 	};
 
     //float4 P = IN.ObjPos;

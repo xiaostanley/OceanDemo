@@ -148,11 +148,17 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 	if (cameraLeftTurn || cameraRightTurn)
 	{
 		float aglYaw = 0.f;
-		if (cameraLeftTurn)		aglYaw = -1.1f;
-		if (cameraRightTurn)	aglYaw = 1.1f;
+		if (cameraLeftTurn)		aglYaw = 1.1f;
+		if (cameraRightTurn)	aglYaw = -1.1f;
 
 		mainCameraView.getCameraNode()->yaw(Ogre::Degree(aglYaw), Ogre::Node::TS_WORLD);
 	}
+
+	const float ydiff = 0.1f;
+	if (mKeyboard->isKeyDown(OIS::KC_PGUP))
+		mainCameraView.getCameraNode()->translate(0.f, ydiff, 0.f);
+	else if (mKeyboard->isKeyDown(OIS::KC_PGDOWN))
+		mainCameraView.getCameraNode()->translate(0.f, -ydiff, 0.f);
 
 #ifdef _USE_OGRE_WATER_
 	mWater->update(evt.timeSinceLastFrame);
@@ -352,6 +358,8 @@ void COgreMain::createContent(void)
 	mainCameraPos.z = 0.f;
 	mainCameraView.getCameraNode()->setPosition(mainCameraPos);
 
+	mainCameraView.getCamera()->pitch(Ogre::Degree(-3.f));
+
 	// 创建视口
 	mainCameraView.setViewportRect(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1, Ogre::ColourValue(0.0f, 0.0f, 0.0f), true);
 	mainCameraView.createViewport(mWindow);
@@ -399,8 +407,8 @@ void COgreMain::createContent(void)
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// 设置雾效
-	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 50.f, 50000.f);
-	//mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.9f, 0.9f, 0.9f), 0.001f);
+//	mSceneMgr->setFog(FOG_LINEAR, Ogre::ColourValue(0.5f, 0.5f, 0.5f), 0.0, 10.f, 50000.f);
+	mSceneMgr->setFog(FOG_EXP, Ogre::ColourValue(0.6f, 0.6f, 0.6f), 0.00003f);
 
 	//设置阴影及环境光
 	mSceneMgr->setShadowTechnique(Ogre::SHADOWTYPE_STENCIL_ADDITIVE);
@@ -432,22 +440,22 @@ void COgreMain::createContent(void)
 	nodeTerra1->addChild(nodeTerraBase1);
 	nodeTerra1->setScale(0.06f, 0.14f, 0.06f);
 
-// 	Entity* entTerra2 = mSceneMgr->createEntity("entTerra2", "18002190PAN_2048.mesh");
-// 	entTerra2->getSubEntity(1)->setVisible(boundaryVisble);
-// 	entTerra2->getSubEntity(2)->setVisible(boundaryVisble);
-// 	entTerra2->getSubEntity(3)->setVisible(boundaryVisble);
-// 	entTerra2->getSubEntity(4)->setVisible(boundaryVisble);
-// 	entTerra2->getSubEntity(5)->setVisible(!boundaryVisble);
-// 	entTerra2->getSubEntity(6)->setVisible(!boundaryVisble);
-// 	entTerra2->getSubEntity(7)->setVisible(!boundaryVisble);
-// 	entTerra2->getSubEntity(8)->setVisible(!boundaryVisble);
-// 	SceneNode* nodeTerraBase2 = mSceneMgr->createSceneNode("nodeTerraBase2");
-// 	nodeTerraBase2->attachObject(entTerra2);
-// 	nodeTerraBase2->setPosition(center + Ogre::Vector3(0.f, 0.f, 6.05f));
-// 	SceneNode* nodeTerra2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra2");
-// 	nodeTerra2->addChild(nodeTerraBase2);
-// 	nodeTerra2->setScale(0.06f, 0.14f, 0.06f);
-// 
+	Entity* entTerra2 = mSceneMgr->createEntity("entTerra2", "18002190PAN_2048.mesh");
+	entTerra2->getSubEntity(1)->setVisible(boundaryVisble);
+	entTerra2->getSubEntity(2)->setVisible(boundaryVisble);
+	entTerra2->getSubEntity(3)->setVisible(boundaryVisble);
+	entTerra2->getSubEntity(4)->setVisible(boundaryVisble);
+	entTerra2->getSubEntity(5)->setVisible(!boundaryVisble);
+	entTerra2->getSubEntity(6)->setVisible(!boundaryVisble);
+	entTerra2->getSubEntity(7)->setVisible(!boundaryVisble);
+	entTerra2->getSubEntity(8)->setVisible(!boundaryVisble);
+	SceneNode* nodeTerraBase2 = mSceneMgr->createSceneNode("nodeTerraBase2");
+	nodeTerraBase2->attachObject(entTerra2);
+	nodeTerraBase2->setPosition(center + Ogre::Vector3(0.f, 0.f, 6.05f));
+	SceneNode* nodeTerra2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeTerra2");
+	nodeTerra2->addChild(nodeTerraBase2);
+	nodeTerra2->setScale(0.06f, 0.14f, 0.06f);
+
 // 	Entity* entTerra3 = mSceneMgr->createEntity("entTerra3", "17002200PAN_2048.mesh");
 // 	entTerra3->getSubEntity(1)->setVisible(boundaryVisble);
 // 	entTerra3->getSubEntity(2)->setVisible(boundaryVisble);
@@ -495,9 +503,12 @@ void COgreMain::createContent(void)
 // 	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
 // 	nodeOs1->attachObject(entOs1);
 
-	Ogre::Entity* entOs = mSceneMgr->createEntity("OceanPlane", "OceanGrid1.mesh");
-	SceneNode* nodeOs = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane");
-	nodeOs->attachObject(entOs);
+	Ogre::Entity* entOs1 = mSceneMgr->createEntity("OceanPlane1", "OceanGrid1.mesh");
+	SceneNode* nodeOs1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane1");
+	nodeOs1->attachObject(entOs1);
+	Ogre::Entity* entOs2 = mSceneMgr->createEntity("OceanPlane2", "OceanGrid2.mesh");
+	SceneNode* nodeOs2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("nodeOceanPlane2");
+	nodeOs2->attachObject(entOs2);
 #endif
 }
 
@@ -564,24 +575,12 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 	}
 
 #ifdef _TERRAIN_SHOW_
-	// 切换边界
-	if (e.key == OIS::KC_P)
-	{
-		Entity* entTerra = mSceneMgr->getEntity("entTerra");
-		boundaryVisble = !boundaryVisble;
-		entTerra->getSubEntity(1)->setVisible(boundaryVisble);
-		entTerra->getSubEntity(2)->setVisible(boundaryVisble);
-		entTerra->getSubEntity(3)->setVisible(boundaryVisble);
-		entTerra->getSubEntity(4)->setVisible(boundaryVisble);
-		entTerra->getSubEntity(5)->setVisible(!boundaryVisble);
-		entTerra->getSubEntity(6)->setVisible(!boundaryVisble);
-		entTerra->getSubEntity(7)->setVisible(!boundaryVisble);
-		entTerra->getSubEntity(8)->setVisible(!boundaryVisble);
-	}
 	// 切换地形显示
 	if (e.key == OIS::KC_I)
 	{
-		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra");
+		SceneNode* nodeTerra = mSceneMgr->getSceneNode("nodeTerra1");
+		nodeTerra->flipVisibility(true);
+		nodeTerra = mSceneMgr->getSceneNode("nodeTerra2");
 		nodeTerra->flipVisibility(true);
 	}
 	// 切换FPS显示
@@ -595,39 +594,42 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 	// 切换三种海面网格的显示
 	if (e.key == OIS::KC_0)
 	{
-		Entity* entTerra = mSceneMgr->getEntity("OceanPlane");
-		SubEntity* subEntSw = entTerra->getSubEntity("SubmeshSw");
-		SubEntity* subEntTr = entTerra->getSubEntity("SubmeshTr");
-		SubEntity* subEntDp = entTerra->getSubEntity("SubmeshDp");
+		for (size_t i = 0; i < 2; i++)
+		{
+			Entity* entTerra = mSceneMgr->getEntity("OceanPlane" + Ogre::StringConverter::toString(i + 1));
+			SubEntity* subEntSw = entTerra->getSubEntity("SubmeshSw");
+			SubEntity* subEntTr = entTerra->getSubEntity("SubmeshTr");
+			SubEntity* subEntDp = entTerra->getSubEntity("SubmeshDp");
 
-		if (gridShowIdx == 0)
-		{
-			if (subEntSw != NULL)  subEntSw->setVisible(true);
-			if (subEntTr != NULL)  subEntTr->setVisible(false);
-			if (subEntDp != NULL)  subEntDp->setVisible(false);
-			gridShowIdx++;
+			if (gridShowIdx == 0)
+			{
+				if (subEntSw != NULL)  subEntSw->setVisible(true);
+				if (subEntTr != NULL)  subEntTr->setVisible(false);
+				if (subEntDp != NULL)  subEntDp->setVisible(false);
+			}
+			else if (gridShowIdx == 1)
+			{
+				if (subEntSw != NULL)  subEntSw->setVisible(false);
+				if (subEntTr != NULL)  subEntTr->setVisible(false);
+				if (subEntDp != NULL)  subEntDp->setVisible(true);
+			}
+			else if (gridShowIdx == 2)
+			{
+				if (subEntSw != NULL)  subEntSw->setVisible(false);
+				if (subEntTr != NULL)  subEntTr->setVisible(true);
+				if (subEntDp != NULL)  subEntDp->setVisible(false);
+			}
+			else
+			{
+				if (subEntSw != NULL)  subEntSw->setVisible(true);
+				if (subEntTr != NULL)  subEntTr->setVisible(true);
+				if (subEntDp != NULL)  subEntDp->setVisible(true);
+			}
 		}
-		else if (gridShowIdx == 1)
-		{
-			if (subEntSw != NULL)  subEntSw->setVisible(false);
-			if (subEntTr != NULL)  subEntTr->setVisible(false);
-			if (subEntDp != NULL)  subEntDp->setVisible(true);
+		if (gridShowIdx <= 2)
 			gridShowIdx++;
-		}
-		else if (gridShowIdx == 2)
-		{
-			if (subEntSw != NULL)  subEntSw->setVisible(false);
-			if (subEntTr != NULL)  subEntTr->setVisible(true);
-			if (subEntDp != NULL)  subEntDp->setVisible(false);
-			gridShowIdx++;
-		}
 		else
-		{
-			if (subEntSw != NULL)  subEntSw->setVisible(true);
-			if (subEntTr != NULL)  subEntTr->setVisible(true);
-			if (subEntDp != NULL)  subEntDp->setVisible(true);
 			gridShowIdx = 0;
-		}
 	}
 #endif
 
@@ -668,8 +670,8 @@ bool COgreMain::keyReleased(const OIS::KeyEvent & e)
 bool COgreMain::mouseMoved(const OIS::MouseEvent & e)
 {
 	//视点控制
-	mainCameraView.getCameraNode()->yaw(Ogre::Degree(-1.0f * (float)e.state.X.rel), Ogre::Node::TS_WORLD);
-	mainCameraView.getCameraNode()->pitch(Ogre::Degree(-1.0f * (float)e.state.Y.rel), Ogre::Node::TS_LOCAL);
+	//mainCameraView.getCameraNode()->yaw(Ogre::Degree(-1.0f * (float)e.state.X.rel), Ogre::Node::TS_WORLD);
+	//mainCameraView.getCameraNode()->pitch(Ogre::Degree(-1.0f * (float)e.state.Y.rel), Ogre::Node::TS_LOCAL);
 
 	return true;
 }

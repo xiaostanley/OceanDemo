@@ -45,7 +45,7 @@ material OceanShallow
 				param_named reflectionAmount float 1.0
 				param_named reflectionBlur float 0.0
 				param_named waterAmount float 0.3
-				param_named fresnelPower float 5.0
+				param_named fresnelPower float 2.0
 				param_named fresnelBias float 0.328
 				param_named hdrMultiplier float 0.471
 			}
@@ -111,7 +111,7 @@ material OceanTransition
 				param_named reflectionAmount float 1.0
 				param_named reflectionBlur float 0.0
 				param_named waterAmount float 0.3
-				param_named fresnelPower float 5.0
+				param_named fresnelPower float 2.0
 				param_named fresnelBias float 0.328
 				param_named hdrMultiplier float 0.471
 			}
@@ -175,7 +175,7 @@ material OceanDeep
 				param_named reflectionAmount float 1.0
 				param_named reflectionBlur float 0.0
 				param_named waterAmount float 0.3
-				param_named fresnelPower float 5.0
+				param_named fresnelPower float 2.0
 				param_named fresnelBias float 0.328
 				param_named hdrMultiplier float 0.471
 			}
