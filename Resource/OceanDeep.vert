@@ -117,7 +117,7 @@ VS_OUTPUT main(VS_INPUT IN,
 
 		// 2016-12-11 14:56:07 Ëæ»ú¸ß¶È
 		float rd = fbm(P.xz - float2(time * 0.5, time * 0.5));
-		P.y += 0.25 * rd;
+		P.y += 0.15 * rd;
 
 		// calculate derivate of wave function
 		deriv = wave[i].freq * wave[i].amp * cos(angle);

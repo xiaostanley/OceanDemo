@@ -128,7 +128,7 @@ VS_OUTPUT main(VS_INPUT IN,
 		float rd = fbm(P.xz - float2(time * 0.5, time * 0.5));
 
 		angleDeep = dot(waveDeep[i].dir, P.xz) * waveDeep[i].freq + time * waveDeep[i].phase;
-		P.y += (waveDeep[i].amp * sin(angleDeep) + 0.25 * rd )* weight;
+		P.y += (waveDeep[i].amp * sin(angleDeep) + 0.15 * rd )* weight;
 
 		derivDeep = waveDeep[i].freq * waveDeep[i].amp * cos(angleDeep);
 		ddx -= derivDeep * waveDeep[i].dir.x * weight;

@@ -24,6 +24,7 @@ COgreMain::COgreMain(void)
 	cameraRightTurn(false),
 	cameraSpeed(40.0f),
 	boundaryVisble(false),
+	viewMode(0),
 	gridShowIdx(0)
 #ifdef _USE_TERRAIN_LIQUID_
 	, tliquid(NULL)
@@ -128,37 +129,37 @@ bool COgreMain::frameRenderingQueued(const Ogre::FrameEvent & evt)
 	if (mKeyboard->isKeyDown(OIS::KC_ESCAPE))
 		return false;
 
-	//视点控制
-	if (cameraForward || cameraBackward || cameraLeft || cameraRight)
+	if (viewMode == 0)
 	{
-		float heightCam = mainCameraView.getCameraNode()->_getDerivedPosition().y;
-		cameraSpeed = 40.f + Ogre::Math::Abs(heightCam);
+		//视点控制
+		if (cameraForward || cameraBackward || cameraLeft || cameraRight)
+		{
+			float heightCam = mainCameraView.getCameraNode()->_getDerivedPosition().y;
+			cameraSpeed = 40.f + Ogre::Math::Abs(heightCam);
 
-		//float cameraSpeed = 2.0f;// 2.0f
-		float moveX = 0.0f;
-		float moveY = 0.0f;
-		float moveZ = 0.0f;
-		if (cameraForward) moveZ = -cameraSpeed;
-		if (cameraBackward) moveZ = cameraSpeed;
-		if (cameraLeft) moveX = -cameraSpeed;
-		if (cameraRight) moveX = cameraSpeed;
+			float moveX = 0.0f, moveY = 0.0f, moveZ = 0.0f;
+			if (cameraForward) moveZ = -cameraSpeed;
+			if (cameraBackward) moveZ = cameraSpeed;
+			if (cameraLeft) moveX = -cameraSpeed;
+			if (cameraRight) moveX = cameraSpeed;
 
-		mainCameraView.getCameraNode()->translate(moveX*evt.timeSinceLastFrame, 0.0f, moveZ*evt.timeSinceLastFrame, Ogre::Node::TS_LOCAL);
+			mainCameraView.getCameraNode()->translate(moveX*evt.timeSinceLastFrame, 0.0f, moveZ*evt.timeSinceLastFrame, Ogre::Node::TS_LOCAL);
+		}
+		if (cameraLeftTurn || cameraRightTurn)
+		{
+			float aglYaw = 0.f;
+			if (cameraLeftTurn)		aglYaw = 1.1f;
+			if (cameraRightTurn)	aglYaw = -1.1f;
+
+			mainCameraView.getCameraNode()->yaw(Ogre::Degree(aglYaw), Ogre::Node::TS_WORLD);
+		}
+
+		const float ydiff = 0.1f;
+		if (mKeyboard->isKeyDown(OIS::KC_PGUP))
+			mainCameraView.getCameraNode()->translate(0.f, ydiff, 0.f);
+		else if (mKeyboard->isKeyDown(OIS::KC_PGDOWN))
+			mainCameraView.getCameraNode()->translate(0.f, -ydiff, 0.f);
 	}
-	if (cameraLeftTurn || cameraRightTurn)
-	{
-		float aglYaw = 0.f;
-		if (cameraLeftTurn)		aglYaw = 1.1f;
-		if (cameraRightTurn)	aglYaw = -1.1f;
-
-		mainCameraView.getCameraNode()->yaw(Ogre::Degree(aglYaw), Ogre::Node::TS_WORLD);
-	}
-
-	const float ydiff = 0.1f;
-	if (mKeyboard->isKeyDown(OIS::KC_PGUP))
-		mainCameraView.getCameraNode()->translate(0.f, ydiff, 0.f);
-	else if (mKeyboard->isKeyDown(OIS::KC_PGDOWN))
-		mainCameraView.getCameraNode()->translate(0.f, -ydiff, 0.f);
 
 #ifdef _USE_OGRE_WATER_
 	mWater->update(evt.timeSinceLastFrame);
@@ -299,8 +300,7 @@ void COgreMain::loadResources(void)
 		{
 			typeName = i->first;
 			archName = i->second;
-			Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-				archName, typeName, secName);
+			Ogre::ResourceGroupManager::getSingleton().addResourceLocation(archName, typeName, secName);
 		}
 	}
 
@@ -546,6 +546,36 @@ bool COgreMain::keyPressed(const OIS::KeyEvent & e)
 		//	mainCameraView.getCamera()->setPolygonMode(Ogre::PM_POINTS);
 		else
 			mainCameraView.getCamera()->setPolygonMode(Ogre::PM_SOLID);
+	}
+
+	// 视点模式切换
+	if (e.key == OIS::KC_1)
+	{
+		if (viewMode == 0)
+		{
+			mainCameraView.getCamera()->pitch(Ogre::Degree(3.f));
+			mainCameraView.getCameraNode()->setPosition(Ogre::Vector3(40.f, 300.f, -165.f));
+			mainCameraView.getCameraNode()->resetOrientation();
+			mainCameraView.getCameraNode()->setDirection(Ogre::Vector3::NEGATIVE_UNIT_Y);
+
+			viewMode = 1;
+		}
+		else if (viewMode == 1)
+		{
+			mainCameraView.getCameraNode()->setPosition(Ogre::Vector3(40.f, 100.f, -165.f));
+			mainCameraView.getCameraNode()->resetOrientation();
+			mainCameraView.getCameraNode()->setDirection(Ogre::Vector3::NEGATIVE_UNIT_Y);
+
+			viewMode = 2;
+		}
+		else if (viewMode == 2)
+		{
+			mainCameraView.getCameraNode()->setPosition(Ogre::Vector3(0.f, 0.f, 0.f));
+			mainCameraView.getCameraNode()->resetOrientation();
+			mainCameraView.getCamera()->pitch(Ogre::Degree(-3.f));
+
+			viewMode = 0;
+		}
 	}
 
 	//视点控制

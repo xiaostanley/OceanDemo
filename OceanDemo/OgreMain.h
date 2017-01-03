@@ -121,6 +121,9 @@ private:
 	bool cameraLeftTurn;
 	bool cameraRightTurn;
 
+	// 视点切换模式
+	int viewMode;
+
 	// 边界可见性
 	bool boundaryVisble;
 
